@@ -17,7 +17,10 @@ function hasPermission(roles:string[], route:RouteRecordRaw):boolean {
     const rolesArr = route.meta.roles as string[];
     return roles.some(role => rolesArr.includes(role));
   } else {
-    return true;
+    // 对于没有明确设置权限的路由，只有特权用户（如admin）可以访问
+    // 这里假设admin是特权用户，可以访问所有未明确限制的路由
+    return roles.includes('admin');
+    // return true; // 允许所有用户访问没有明确权限设置的路由
   }
 }
 

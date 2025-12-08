@@ -16,6 +16,9 @@
         <el-tooltip content="全局组件尺寸" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
+        
+        <!-- [NEW] 业务空间选择器 -->
+        <space-select class="right-menu-item hover-effect" />
 
       </template>
 
@@ -59,6 +62,8 @@ import ErrorLog from '@/components/ErrorLog';
 import Screenfull from '@/components/Screenfull';
 import SizeSelect from '@/components/SizeSelect';
 import Search from '@/components/HeaderSearch';
+// [NEW] 引入组件
+import SpaceSelect from '@/components/SpaceSelect/index.vue';
 import { defineComponent } from 'vue';
 import { CaretBottom } from '@element-plus/icons-vue';
 
@@ -70,7 +75,9 @@ export default defineComponent({
     Screenfull,
     SizeSelect,
     Search,
-    CaretBottom
+    CaretBottom,
+    // [NEW] 注册组件
+    SpaceSelect
   },
   computed: {
     ...mapState(store.app, [

@@ -3,6 +3,37 @@
  */
 
 /**
+ * Format date to readable string
+ */
+export const formatDate = (date, format = 'datetime') => {
+  const d = new Date(date);
+
+  if (isNaN(d.getTime())) {
+    return 'Invalid Date';
+  }
+
+  const options = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  };
+
+  if (format === 'datetime' || format === 'time') {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+    options.second = '2-digit';
+  }
+
+  if (format === 'time') {
+    delete options.year;
+    delete options.month;
+    delete options.day;
+  }
+
+  return d.toLocaleString('zh-CN', options);
+};
+
+/**
  * Parse the time to string
  * @param {(Object|string|number)} time
  * @param {string} cFormat
@@ -254,7 +285,7 @@ export function getTime(type) {
 export function debounce(func, wait, immediate) {
   let timeout, args, context, timestamp, result;
 
-  const later = function() {
+  const later = function () {
     // 据上一次触发时间间隔
     const last = +new Date() - timestamp;
 
@@ -271,7 +302,7 @@ export function debounce(func, wait, immediate) {
     }
   };
 
-  return function(...args) {
+  return function (...args) {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     context = this;
     timestamp = +new Date();

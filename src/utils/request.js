@@ -1,6 +1,8 @@
 import axios from 'axios';
 import store from '@/store';
 import { getToken } from '@/utils/auth';
+// [NEW] 引入 Space Store
+import { useSpaceStore } from '@/store/modules/space';
 
 console.log('import.meta.env=', import.meta.env);
 
@@ -18,10 +20,14 @@ service.interceptors.request.use(
 
     if (store.user().token) {
       // let each request carry token
-      // ['X-Token'] is a custom headers key
-      // please modify it according to the actual situation
-      config.headers['X-Token'] = getToken();
+      config.headers['Authorization'] = 'Bearer ' + getToken();
     }
+    // 注入业务空间 ID
+    const spaceStore = useSpaceStore();
+    if (spaceStore.currentSpaceId) {
+      config.headers['X-Space-Id'] = spaceStore.currentSpaceId;
+    }
+
     return config;
   },
   error => {
@@ -37,26 +43,32 @@ service.interceptors.response.use(
    * If you want to get http information such as headers or status
    * Please return  response => response
   */
-
-  /**
-   * Determine the request status by custom code
-   * Here is just an example
-   * You can also judge the status by HTTP Status Code
-   */
   response => {
     const res = response.data;
 
+    // 检查：如果 API 直接返回了一个数组
+    // if (Array.isArray(response.data) || res.code == null) {
+    //   return {
+    //     code: 20000, 
+    //     data: response.data // 修改：这里不需要再包一层 data.items，除非你的UI组件强制要求
+    //     // 如果后端返回的就是 List<BusinessSpace>，那么 res 就是数组
+    //   };
+    // }
+
     // if the custom code is not 20000, it is judged as an error.
     if (res.code !== 20000) {
+      // 1. 检查是否是二进制流
+      if (response.config.responseType === 'blob' || response.data instanceof Blob) {
+        return response.data; // 直接返回 Blob，不检查 code
+      }
+
       ElMessage({
         message: res.message || 'Error',
         type: 'error',
         duration: 5 * 1000
       });
 
-      // 50008: Illegal token; 50012: Other clients logged in; 50014: Token expired;
       if (res.code === 50008 || res.code === 50012 || res.code === 50014) {
-        // to re-login
         ElMessageBox.confirm('You have been logged out, you can cancel to stay on this page, or log in again', 'Confirm logout', {
           confirmButtonText: 'Re-Login',
           cancelButtonText: 'Cancel',

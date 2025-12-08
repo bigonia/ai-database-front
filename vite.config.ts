@@ -91,6 +91,11 @@ export default defineConfig(({ command, mode }) => {
           headers: {
             Cookie: env.VITE_COOKIE
           }
+        },
+        // 代理所有 /api 开头的请求到后端服务
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true
         }
       }
     }

@@ -5,6 +5,9 @@ const tokens = {
   },
   editor: {
     token: 'editor-token'
+  },
+  guest: {
+    token: 'guest-token'
   }
 };
 
@@ -20,65 +23,71 @@ const users = {
     introduction: 'I am an editor',
     avatar: 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif',
     name: 'Normal Editor'
+  },
+  'guest-token': {
+    roles: ['guest'],
+    introduction: 'I am a guest user',
+    avatar: 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif',
+    name: 'Guest User'
   }
 };
 
 export default [
   // user login
-  {
-    url: '/vue-element-admin/user/login',
-    method: 'post',
-    response: config => {
-      const { username } = config.body;
-      const token = tokens[username];
+  // {
+  //   url: '/vue-element-admin/user/login',
+  //   method: 'post',
+  //   response: config => {
+  //     const { username } = config.body;
+  //     const token = tokens[username];
 
-      // mock error
-      if (!token) {
-        return {
-          code: 60204,
-          message: 'Account and password are incorrect.'
-        };
-      }
+  //     // mock error
+  //     if (!token) {
+  //       return {
+  //         code: 60204,
+  //         message: 'Account and password are incorrect.'
+  //       };
+  //     }
 
-      return {
-        code: 20000,
-        data: token
-      };
-    }
-  },
+  //     return {
+  //       code: 20000,
+  //       data: token
+  //     };
+  //   }
+  // },
 
   // get user info
-  {
-    url: '/vue-element-admin/user/info',
-    method: 'get',
-    response: config => {
-      const { token } = config.query;
-      const info = users[token];
+  // {
+  //   url: '/vue-element-admin/user/info',
+  //   method: 'get',
+  //   response: config => {
+  //     const { token } = config.query;
+  //     const info = users[token];
 
-      // mock error
-      if (!info) {
-        return {
-          code: 50008,
-          message: 'Login failed, unable to get user details.'
-        };
-      }
+  //     // mock error
+  //     if (!info) {
+  //       return {
+  //         code: 50008,
+  //         message: 'Login failed, unable to get user details.'
+  //       };
+  //     }
 
-      return {
-        code: 20000,
-        data: info
-      };
-    }
-  },
+  //     return {
+  //       code: 20000,
+  //       data: info
+  //     };
+  //   }
+  // },
 
   // user logout
-  {
-    url: '/vue-element-admin/user/logout',
-    method: 'post',
-    response: () => {
-      return {
-        code: 20000,
-        data: 'success'
-      };
-    }
-  }
+  // {
+  //   url: '/vue-element-admin/user/logout',
+  //   method: 'post',
+  //   response: () => {
+  //     return {
+  //       code: 20000,
+  //       data: 'success'
+  //     };
+  //   }
+  // }
 ];

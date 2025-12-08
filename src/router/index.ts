@@ -4,7 +4,7 @@ import type { Router, RouteRecordRaw, RouteComponent } from 'vue-router';
 import { Help as IconHelp } from '@element-plus/icons-vue';
 
 /* Layout */
-const Layout = ():RouteComponent => import('@/layout/index.vue');
+const Layout = (): RouteComponent => import('@/layout/index.vue');
 
 /* Router Modules */
 import componentsRouter from './modules/components';
@@ -19,7 +19,7 @@ import tableRouter from './modules/table';
  *
  * 注意：hidden、alwaysShow 属性配置移动到了meta中！！！
  */
-export const constantRoutes:RouteRecordRaw[] = [
+export const constantRoutes: RouteRecordRaw[] = [
   {
     path: '/redirect',
     component: Layout,
@@ -64,31 +64,31 @@ export const constantRoutes:RouteRecordRaw[] = [
       }
     ]
   },
-  {
-    path: '/documentation',
-    component: Layout,
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/documentation/index.vue'),
-        name: 'Documentation',
-        meta: { title: '文档', icon: 'documentation', affix: true }
-      }
-    ]
-  },
-  {
-    path: '/guide',
-    component: Layout,
-    redirect: '/guide/index',
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/guide/index.vue'),
-        name: 'Guide',
-        meta: { title: '引导页', icon: 'guide', noCache: true }
-      }
-    ]
-  },
+  // {
+  //   path: '/documentation',
+  //   component: Layout,
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/documentation/index.vue'),
+  //       name: 'Documentation',
+  //       meta: { title: '文档', icon: 'documentation', affix: true }
+  //     }
+  //   ]
+  // },
+  // {
+  //   path: '/guide',
+  //   component: Layout,
+  //   redirect: '/guide/index',
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/guide/index.vue'),
+  //       name: 'Guide',
+  //       meta: { title: '引导页', icon: 'guide', noCache: true }
+  //     }
+  //   ]
+  // },
   {
     path: '/profile',
     component: Layout,
@@ -111,7 +111,7 @@ export const constantRoutes:RouteRecordRaw[] = [
  *
  * 注意：hidden、alwaysShow 属性配置移动到了meta中！！！
  */
-export const asyncRoutes:RouteRecordRaw[] = [
+export const asyncRoutes: RouteRecordRaw[] = [
   {
     path: '/permission',
     component: Layout,
@@ -157,12 +157,119 @@ export const asyncRoutes:RouteRecordRaw[] = [
   {
     path: '/icon',
     component: Layout,
+    meta: { roles: ['admin', 'editor'] },
     children: [
       {
         path: 'index',
         component: () => import('@/views/icons/index.vue'),
         name: 'Icons',
-        meta: { title: '图标', icon: 'icon', noCache: true }
+        meta: { title: '图标', icon: 'icon', noCache: true, roles: ['admin', 'editor'] }
+      }
+    ]
+  },
+
+  {
+    path: '/ai-chat',
+    component: Layout,
+    meta: {
+      // title: 'AI 对话',
+      // icon: 'el-icon-chat-dot-round',
+      roles: ['guest']
+    },
+    children: [
+      {
+        path: 'index',
+        name: 'AiChat',
+        component: () => import('@/views/ai-chat/index.vue'),
+        meta: {
+          title: 'AI 对话',
+          icon: 'wechat',
+          // 关键：在这里设置哪些角色可以看到这个页面
+          roles: ['admin', 'editor', 'guest']
+        }
+      }
+    ]
+  },
+
+  {
+    path: '/datasource',
+    component: Layout, // 必须是 Layout 组件
+    redirect: '/datasource/list',
+    name: 'Datasource', // 路由名称
+    meta: {
+      title: '数据源管理', // 侧边栏显示的标题
+      icon: 'table', // 侧边栏图标 (el-icon-coin, database, table 等)
+      roles: ['admin', 'editor', 'guest']
+    },
+    children: [
+      {
+        path: 'list',
+        name: 'DatasourceList',
+        component: () => import('@/views/datasource/index.vue'), // 指向我们刚创建的 .vue 文件
+        meta: { title: '数据源列表', icon: 'table', roles: ['editor', 'guest'] } // 子菜单标题和图标
+      }
+      // 如果您有 "新建数据源" 的单独页面，可以在这里添加
+      // {
+      //   path: 'create',
+      //   name: 'DatasourceCreate',
+      //   component: () => import('@/views/datasource/create'),
+      //   meta: { title: '新增数据源', icon: 'edit' },
+      //   hidden: true // 不在侧边栏显示，但可以跳转
+      // }
+    ]
+  },
+
+  {
+    path: '/file-ops',
+    component: Layout,
+    redirect: '/file-ops/manager',
+    name: 'FileOps',
+    meta: { title: '文件管理', icon: 'documentation', roles: ['editor', 'guest'] },
+    children: [
+      {
+        path: 'manager',
+        name: 'FileManager',
+        component: () => import('@/views/file-manager/index.vue'), // 指向您刚创建的文件
+        meta: { title: '文件列表', icon: 'documentation', roles: ['editor', 'guest'] }
+      }
+    ]
+  },
+
+  {
+    path: '/domain-docs',
+    component: Layout,
+    redirect: '/domain-docs/list',
+    name: 'DomainDocs',
+    meta: {
+      title: '领域文档管理',
+      icon: 'documentation', roles: ['editor', 'guest']
+    },
+    children: [
+      {
+        path: 'list',
+        component: () => import('@/views/domain-docs/index.vue'),
+        name: 'DomainDocList',
+        meta: { title: '领域文档', icon: 'list', noCache: true, roles: ['editor', 'guest'] }
+      }
+    ]
+  },
+
+  {
+    path: '/knowledge',
+    component: Layout,
+    redirect: '/knowledge/list',
+    name: 'KnowledgeBase',
+    meta: {
+      title: '知识库管理',
+      icon: 'documentation' // 确保您有这个icon，或者换成 'table'
+      , roles: ['editor', 'guest']
+    },
+    children: [
+      {
+        path: 'list',
+        component: () => import('@/views/knowledge/index'),
+        name: 'DocumentList',
+        meta: { title: '向量库', icon: 'list', roles: ['editor', 'guest'] }
       }
     ]
   },
@@ -180,7 +287,8 @@ export const asyncRoutes:RouteRecordRaw[] = [
     name: 'Example',
     meta: {
       title: '综合示例',
-      icon: markRaw(IconHelp)
+      icon: markRaw(IconHelp),
+      meta: { title: '综合示例', icon: 'example', roles: ['guest', 'admin'] }
     },
     children: [
       {
@@ -390,12 +498,12 @@ export const asyncRoutes:RouteRecordRaw[] = [
   },
 
   // 404 page must be placed at the end !!!
-  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true }}
+  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true } }
 ];
 
 console.log('BASE_URL=', import.meta.env);
 
-const createTheRouter = ():Router => createRouter({
+const createTheRouter = (): Router => createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   // 注意，如果要配置 HTML5 模式，则需要修改nginx配置，参考资料：
   // https://router.vuejs.org/zh/guide/essentials/history-mode.html
