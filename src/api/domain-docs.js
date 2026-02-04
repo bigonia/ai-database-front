@@ -9,11 +9,20 @@ export function fetchList(query) {
   })
 }
 
-// 获取单个文档详情
+// 获取单个文档详情 (基本信息)
 export function fetchDocument(id) {
   return request({
     url: `/api/domain-docs/${id}`,
     method: 'get'
+  })
+}
+
+// 新增：分页获取文档内容片段 (Context)
+export function fetchDocumentContext(id, params) {
+  return request({
+    url: `/api/domain-docs/${id}/context`,
+    method: 'get',
+    params // { page, size }
   })
 }
 
@@ -25,7 +34,7 @@ export function deleteDocument(id) {
   })
 }
 
-// 获取支持的业务动作列表 (下拉菜单用)
+// 获取支持的业务动作列表
 export function fetchSupportedActions() {
   return request({
     url: '/api/domain-docs/actions/support-list',
@@ -50,8 +59,7 @@ export function vectorDocument(id) {
   })
 }
 
-// 创建衍生文档 (Python脚本清洗)
-// 后端接收 @RequestBody String script，因此 Content-Type 设为 text/plain
+// 创建衍生文档
 export function createDerivedDocument(parentId, script) {
   return request({
     url: `/api/domain-docs/${parentId}/derive`,
@@ -63,12 +71,18 @@ export function createDerivedDocument(parentId, script) {
   })
 }
 
-// 获取 AI 生成脚本的接口 URL
-// 注意：该接口返回流式数据 (Flux<String>)，建议前端使用 fetch + ReadableStream 处理
+// 导出文档为Excel
+export function exportDocumentExcel(docId) {
+  return request({
+    url: `/api/domain-docs/${docId}/export/excel`,
+    method: 'get',
+    responseType: 'blob', // 必须设置为 blob
+    timeout: 60000 // 增加超时时间应对大文件
+  })
+}
+
 export const generateScriptAPI = '/api/domain-docs/generate-script'
 
-// 获取文档流式内容的接口 URL
-// 注意：该接口返回 NDJSON 流，建议前端使用 fetch + ReadableStream 处理
 export function getDocumentStreamUrl(docId) {
   return `/api/domain-docs/${docId}/stream`
 }

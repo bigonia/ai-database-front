@@ -22,14 +22,14 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="文档名称" min-width="100px">
+      <el-table-column label="文档名称" min-width="150px">
         <template #default="{row}">
           <span class="link-type" @click="handleViewDetails(row)">{{ row.docName }}</span>
         </template>
       </el-table-column>
       
       <!-- 文档模式 DocMode -->
-      <el-table-column label="模式" width="150px" align="center">
+      <el-table-column label="模式" width="100px" align="center">
         <template #default="{row}">
           <el-tag :type="row.docMode === 'VIRTUAL' ? 'warning' : 'success'" effect="dark" size="small">
             {{ row.docMode || 'MATERIALIZED' }}
@@ -77,27 +77,37 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" align="center" width="300" class-name="small-padding fixed-width">
+      <!-- 优化后的操作列：固定在右侧，宽度减小，使用下拉菜单 -->
+      <el-table-column label="操作" align="center" width="220" class-name="small-padding fixed-width" fixed="right">
         <template #default="{row}">
-          <el-button type="success" size="small" @click="handleVectorize(row)">
-            向量化
-          </el-button>
-          <el-button type="warning" size="small" @click="handleDerive(row)">
+          <!-- 高频操作直接展示 -->
+          <el-button type="primary" link size="small" @click="handleDerive(row)">
             清洗
           </el-button>
-          <el-button type="primary" size="small" @click="handleTriggerAction(row)">
-            动作
+          <el-button type="primary" link size="small" @click="handleVectorize(row)">
+            向量化
           </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">
-            删除
-          </el-button>
+          
+          <!-- 低频操作折叠 -->
+          <el-dropdown trigger="click" style="margin-left: 10px;">
+            <el-button type="primary" link size="small">
+              更多 <i class="el-icon-arrow-down el-icon--right"></i>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleTriggerAction(row)">业务动作</el-dropdown-item>
+                <el-dropdown-item @click="handleExportExcel(row)">导出Excel</el-dropdown-item>
+                <el-dropdown-item divided style="color: #F56C6C;" @click="handleDelete(row)">删除文档</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 详情弹窗 -->
     <el-dialog title="文档详情" v-model="detailsVisible" width="75%" top="5vh">
-      <el-tabs v-if="tempRow" v-model="activeDetailTab">
+      <el-tabs v-if="tempRow" v-model="activeDetailTab" @tab-click="handleDetailTabClick">
         <!-- 标签页1：基本信息 -->
         <el-tab-pane label="基本信息" name="info">
           <el-descriptions border :column="2">
@@ -114,38 +124,55 @@
           </div>
         </el-tab-pane>
 
-        <!-- 标签页2：内容预览 -->
-        <el-tab-pane label="内容预览 (Chunks)" name="content">
+        <!-- 标签页2：内容预览 (分页) -->
+        <el-tab-pane label="内容预览 (Context)" name="content">
            <div class="alert-info" v-if="tempRow.docMode === 'VIRTUAL'">
              <i class="el-icon-info"></i> 当前为虚拟文档，此处仅展示部分预览数据。如需查看完整数据，请切换至“实时流预览”标签页。
            </div>
-          <div v-if="tempRow.contentList && tempRow.contentList.length > 0">
-            <div class="content-summary">
-              预览片段数: <span style="font-weight: bold;">{{ tempRow.contentList.length }}</span>
-            </div>
-            <div class="chunk-list">
-              <div 
-                v-for="(chunk, index) in tempRow.contentList" 
-                :key="chunk.id || index"
-                class="chunk-item"
-              >
-                <div class="chunk-header">
-                  <span class="chunk-index">#{{ index + 1 }}</span>
-                  <div class="chunk-tools">
-                    <el-button type="text" size="small" @click="toggleChunkMeta(chunk)">
-                      {{ chunk._showMeta ? '收起元数据' : '查看元数据' }}
-                    </el-button>
-                    <span class="chunk-id">ID: {{ chunk.id }}</span>
+           
+           <div v-loading="contextLoading">
+             <div v-if="contextList && contextList.length > 0">
+              <div class="content-summary">
+                共 {{ contextTotal }} 个片段
+              </div>
+              <div class="chunk-list">
+                <div 
+                  v-for="(chunk, index) in contextList" 
+                  :key="chunk.id || index"
+                  class="chunk-item"
+                >
+                  <div class="chunk-header">
+                    <span class="chunk-index">#{{ (contextListQuery.page - 1) * contextListQuery.size + index + 1 }}</span>
+                    <div class="chunk-tools">
+                      <el-button type="text" size="small" @click="toggleChunkMeta(chunk)">
+                        {{ chunk._showMeta ? '收起元数据' : '查看元数据' }}
+                      </el-button>
+                      <span class="chunk-id">ID: {{ chunk.id }}</span>
+                    </div>
                   </div>
+                  <div v-if="chunk._showMeta" class="chunk-meta-box">
+                    <pre>{{ chunk.metadata ? JSON.stringify(chunk.metadata, null, 2) : '{}' }}</pre>
+                  </div>
+                  <div class="chunk-text">{{ chunk.text }}</div>
                 </div>
-                <div v-if="chunk._showMeta" class="chunk-meta-box">
-                  <pre>{{ chunk.metadata ? JSON.stringify(chunk.metadata, null, 2) : '{}' }}</pre>
-                </div>
-                <div class="chunk-text">{{ chunk.text }}</div>
+              </div>
+
+              <!-- 分页组件 -->
+              <div style="margin-top: 15px; text-align: right;">
+                <el-pagination
+                  background
+                  layout="prev, pager, next, sizes, jumper"
+                  :total="contextTotal"
+                  :current-page="contextListQuery.page"
+                  :page-size="contextListQuery.size"
+                  :page-sizes="[5, 10, 20, 50]"
+                  @size-change="handleContextSizeChange"
+                  @current-change="handleContextPageChange"
+                />
               </div>
             </div>
-          </div>
-          <el-empty v-else description="暂无预览数据"></el-empty>
+            <el-empty v-else description="暂无预览数据"></el-empty>
+           </div>
         </el-tab-pane>
 
         <!-- 标签页3：实时流预览 -->
@@ -180,16 +207,14 @@
         <!-- 左侧：采样数据与AI -->
         <el-col :span="9" style="height: 100%; display: flex; flex-direction: column;">
           
-          <!-- 采样数据展示区 (新增) -->
           <div class="panel-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 10px;">
              <div class="panel-title">原始数据采样 (Sample Data)</div>
-             <div class="sample-box">
+             <div class="sample-box" v-loading="sampleLoading">
                 <pre v-if="sampleDataPreview">{{ sampleDataPreview }}</pre>
                 <div v-else class="empty-sample">暂无采样数据</div>
              </div>
           </div>
 
-          <!-- AI 助手区 -->
           <div class="panel-section" style="flex: 0 0 auto;">
             <div class="panel-title">AI 智能助手</div>
             <el-input 
@@ -262,12 +287,11 @@
 
 <script>
 import { 
-  fetchList, fetchDocument, deleteDocument, fetchSupportedActions, triggerBusinessAction, vectorDocument,
-  createDerivedDocument, generateScriptAPI, getDocumentStreamUrl
+  fetchList, deleteDocument, fetchSupportedActions, triggerBusinessAction, vectorDocument,
+  createDerivedDocument, generateScriptAPI, getDocumentStreamUrl, fetchDocumentContext, exportDocumentExcel
 } from '@/api/domain-docs'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { getToken } from '@/utils/auth'
-import { useSpaceStore } from '@/store/modules/space';
 
 export default {
   name: 'DomainDocList',
@@ -282,6 +306,15 @@ export default {
       activeDetailTab: 'info',
       tempRow: null,
       
+      // 内容分页预览
+      contextLoading: false,
+      contextList: [],
+      contextTotal: 0,
+      contextListQuery: {
+        page: 1,
+        size: 10
+      },
+
       // 流式查看
       isStreaming: false,
       streamLogs: [],
@@ -295,7 +328,8 @@ export default {
       deriveDialogVisible: false,
       deriveLoading: false,
       aiGenerating: false,
-      sampleDataPreview: '', // 新增：采样数据预览文本
+      sampleLoading: false,
+      sampleDataPreview: '',
       deriveTemp: {
         parentId: null,
         requirement: '',
@@ -309,17 +343,14 @@ export default {
     this.getActions()
   },
   methods: {
-    // 兼容获取 Base URL，修复 process is not defined
     getBaseUrl() {
-      // Vite 环境使用 import.meta.env
       if (typeof import.meta !== 'undefined' && import.meta.env) {
         return import.meta.env.VITE_APP_BASE_API || ''
       }
-      // Webpack 环境使用 process.env (需判断 process 是否存在)
       if (typeof process !== 'undefined' && process.env) {
         return process.env.VUE_APP_BASE_API || ''
       }
-      return '' // 默认空字符串（相对路径）
+      return ''
     },
 
     getStatusType(status) {
@@ -368,16 +399,63 @@ export default {
       } catch (error) { console.error(error) }
     },
 
-    // --- 详情与流式查看 ---
+    // --- 详情、上下文分页与流式查看 ---
     handleViewDetails(row) {
       this.tempRow = JSON.parse(JSON.stringify(row))
-      if (this.tempRow.contentList) {
-        this.tempRow.contentList.forEach(chunk => chunk._showMeta = false)
-      }
       this.activeDetailTab = 'info'
       this.detailsVisible = true
       this.streamLogs = []
       this.isStreaming = false
+      
+      // 重置上下文分页状态
+      this.contextList = []
+      this.contextTotal = 0
+      this.contextListQuery.page = 1
+    },
+
+    handleDetailTabClick(tab) {
+      if (tab.paneName === 'content') {
+        this.getContextList()
+      }
+    },
+
+    async getContextList() {
+      if (!this.tempRow || !this.tempRow.id) return
+      this.contextLoading = true
+      try {
+        // 后端 Page 接口一般返回结构: { content: [], totalElements: 100, ... }
+        // 具体视后端 ApiResponse 封装而定，这里假设 response.data 即为 Page 对象
+        const response = await fetchDocumentContext(this.tempRow.id, {
+          page: this.contextListQuery.page - 1, // Spring Boot Page 从 0 开始，ElementUI 从 1 开始
+          size: this.contextListQuery.size
+        })
+        
+        const pageData = response.data || {}
+        this.contextList = pageData.content || []
+        this.contextTotal = pageData.totalElements || 0
+        
+        // 预处理 metadata 展示开关
+        this.contextList.forEach(chunk => {
+          chunk._showMeta = false
+        })
+
+      } catch (error) {
+        console.error(error)
+        ElMessage.error('获取文档内容失败')
+      } finally {
+        this.contextLoading = false
+      }
+    },
+
+    handleContextSizeChange(val) {
+      this.contextListQuery.size = val
+      this.contextListQuery.page = 1 // 重置到第一页
+      this.getContextList()
+    },
+
+    handleContextPageChange(val) {
+      this.contextListQuery.page = val
+      this.getContextList()
     },
 
     toggleChunkMeta(chunk) {
@@ -397,21 +475,16 @@ export default {
       
       try {
         const token = getToken()
-        // 修复：使用 getBaseUrl() 替代直接访问 process
         const baseUrl = this.getBaseUrl()
         const fullUrl = baseUrl + url
-        // 注入业务空间 ID
-        const spaceStore = useSpaceStore();
 
         const response = await fetch(fullUrl, {
           method: 'GET',
           headers: {
             'Authorization': token ? `Bearer ${token}` : '',
-            'X-Space-Id': spaceStore.currentSpaceId,
             'Accept': 'application/x-ndjson'
           }
         })
-
 
         if (!response.ok) throw new Error('Network response was not ok')
         
@@ -458,23 +531,18 @@ export default {
         useSample: true,
         script: '# Python Script for Document Cleaning\n\ndef process(doc):\n    # doc 是一个字典，包含 content, metadata 等\n    # TODO: Implement your logic here\n    return doc\n'
       }
-      this.sampleDataPreview = '加载中...'
+      this.sampleDataPreview = ''
       this.deriveDialogVisible = true
-
-      // 获取采样数据逻辑
+      
+      // 获取采样数据：调用分页接口，取前 3 条
+      this.sampleLoading = true
       try {
-        let contentList = row.contentList
-        // 如果列表中没有 contentList，则尝试获取详情
-        if (!contentList || contentList.length === 0) {
-           const res = await fetchDocument(row.id)
-           if (res.data && res.data.contentList) {
-             contentList = res.data.contentList
-           }
-        }
+        const response = await fetchDocumentContext(row.id, { page: 0, size: 3 })
+        const pageData = response.data || {}
+        const contentList = pageData.content || []
 
         if (contentList && contentList.length > 0) {
-          // 取前3条作为采样
-          const samples = contentList.slice(0, 3).map(c => ({
+          const samples = contentList.map(c => ({
             id: c.id,
             text: c.text,
             metadata: c.metadata
@@ -485,6 +553,8 @@ export default {
         }
       } catch (e) {
         this.sampleDataPreview = '无法加载采样数据: ' + e.message
+      } finally {
+        this.sampleLoading = false
       }
     },
 
@@ -501,13 +571,10 @@ export default {
         const token = getToken()
         const requestBody = {
           docId: this.deriveTemp.parentId,
-          // 如果勾选了使用采样，则将前端展示的采样文本传给后端（如果后端需要），或者后端自己根据 docId 查
-          // 这里假设后端主要依赖 docId，前端采样数据作为补充 prompt
           sampleData: this.deriveTemp.useSample ? this.sampleDataPreview : null, 
           requirement: this.deriveTemp.requirement
         }
 
-        // 修复：使用 getBaseUrl() 替代直接访问 process
         const baseUrl = this.getBaseUrl()
         const fullUrl = baseUrl + generateScriptAPI
 
@@ -555,6 +622,66 @@ export default {
         this.deriveLoading = false
       }
     },
+
+    async handleExportExcel(row) {
+      try {
+        this.listLoading = true;
+        const response = await exportDocumentExcel(row.id);
+        
+        // 兼容性处理：防止 request.js 拦截器未正确返回完整 response 的情况
+        const isBlob = response instanceof Blob;
+        const blobData = isBlob ? response : response.data;
+        
+        if (!blobData || blobData.size === 0) {
+          throw new Error('下载的文件内容为空，请检查文档是否有数据');
+        }
+        
+        let fileName = '导出数据.xlsx';
+        const headers = isBlob ? {} : (response.headers || {});
+        
+        if (headers) {
+          // 尝试获取 content-disposition
+          let contentDisposition = null;
+          // 遍历查找，防止 key 大小写问题
+          for (let key in headers) {
+            if (key.toLowerCase() === 'content-disposition') {
+              contentDisposition = headers[key];
+              break;
+            }
+          }
+          
+          if (contentDisposition) {
+            const rfc5987Regex = /filename\*=utf-8''(.+)/i;
+            const rfc5987Match = contentDisposition.match(rfc5987Regex);
+            if (rfc5987Match && rfc5987Match[1]) {
+              fileName = decodeURIComponent(rfc5987Match[1]);
+            } else {
+              const standardRegex = /filename=["']?([^"';\r\n]+)["']?/;
+              const standardMatch = contentDisposition.match(standardRegex);
+              if (standardMatch && standardMatch[1]) {
+                fileName = standardMatch[1];
+              }
+            }
+          }
+        }
+        
+        const downloadUrl = window.URL.createObjectURL(blobData);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+        
+        ElMessage.success('Excel导出成功');
+      } catch (error) {
+        console.error('Excel导出失败:', error);
+        ElMessage.error(error.message || 'Excel导出失败');
+      } finally {
+        this.listLoading = false;
+      }
+    }, 
 
     // --- 通用动作 ---
     handleVectorize(row) {
@@ -632,7 +759,7 @@ export default {
 .chunk-meta-box pre { margin: 0; white-space: pre-wrap; font-family: Consolas, monospace; font-size: 12px; color: #606266; }
 .chunk-text { font-size: 14px; line-height: 1.6; color: #303133; white-space: pre-wrap; }
 
-/* 衍生弹窗样式 - 增强布局 */
+/* 衍生弹窗样式 */
 .panel-title { font-weight: bold; margin-bottom: 10px; color: #303133; font-size: 14px; border-left: 4px solid #409EFF; padding-left: 8px; }
 .sample-box { flex: 1; background: #282c34; border-radius: 4px; padding: 10px; overflow: auto; color: #abb2bf; font-family: Consolas, monospace; font-size: 12px; border: 1px solid #dcdfe6; }
 .sample-box pre { margin: 0; white-space: pre-wrap; }

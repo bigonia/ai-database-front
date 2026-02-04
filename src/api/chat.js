@@ -1,73 +1,77 @@
 import request from '@/utils/request';
-import axios from 'axios';
 import { getToken } from '@/utils/auth';
 import { useSpaceStore } from '@/store/modules/space';
 
-/**
- * AI 对话 API 模块
- */
+// 定义双重 Base URL 以适配混合后端架构
+const LEGACY_BASE_URL = '/api/ai';       // 旧版管理接口地址
+const AGENT_BASE_URL = '/api/v1/agent';  // 新版 Agent 服务地址
 
 /**
- * 1. 获取会话列表
- * 已移除 userId 参数
+ * 1. 获取会话列表 (保持原有逻辑)
+ * 路径: /api/ai/conversations
  */
 export function getUserConversations() {
   return request({
-    url: '/api/ai/conversations',
+    url: `${LEGACY_BASE_URL}/conversations`,
     method: 'get'
   });
 }
 
 /**
- * 2. 创建新会话
+ * 2. 创建新会话 (保持原有逻辑)
+ * 路径: /api/ai/conversations
  * @param {string} title - 会话标题
  */
 export function createConversation(title) {
   return request({
-    url: '/api/ai/conversations',
+    url: `${LEGACY_BASE_URL}/conversations`,
     method: 'post',
     data: { title }
   });
 }
 
 /**
- * 3. 获取某个会话的具体消息历史
+ * 3. 获取某个会话的具体消息历史 (已迁移)
+ * 路径: /api/v1/agent/history/{conversationId}
+ * 说明: 接口已更新为 Agent 服务下的 /history/{id}
  * @param {string} conversationId - 会话ID
  */
 export function getConversationMessages(conversationId) {
   return request({
-    url: `/api/ai/conversations/${conversationId}/messages`,
+    url: `${AGENT_BASE_URL}/history/${conversationId}`,
     method: 'get'
   });
 }
 
 /**
- * 4. 删除会话
+ * 4. 删除会话 (保持原有逻辑)
+ * 路径: /api/ai/conversations/{conversationId}
  * @param {string} conversationId - 会话ID
  */
 export function deleteConversation(conversationId) {
   return request({
-    url: `/api/ai/conversations/${conversationId}`,
+    url: `${LEGACY_BASE_URL}/conversations/${conversationId}`,
     method: 'delete'
   });
 }
 
 /**
- * 5. 重命名会话
+ * 5. 重命名会话 (保持原有逻辑)
+ * 路径: /api/ai/conversations/{conversationId}/title
  * @param {string} conversationId - 会话ID
  * @param {string} title - 新标题
  */
 export function renameConversation(conversationId, title) {
   return request({
-    url: `/api/ai/conversations/${conversationId}/title`,
+    url: `${LEGACY_BASE_URL}/conversations/${conversationId}/title`,
     method: 'patch',
     data: { title }
   });
 }
 
 /**
- * 发送消息至 RAG 聊天接口并处理流式响应
- * 注意：假设流式接口 URL 保持不变，且 sessionId 对应 conversationId
+ * 发送消息至 Agent 聊天接口并处理流式响应 (已迁移)
+ * 路径: /api/v1/agent/chat
  */
 export async function fetchChatStream(data, onData, onFinish, onError) {
   try {
@@ -83,14 +87,19 @@ export async function fetchChatStream(data, onData, onFinish, onError) {
 
     const spaceStore = useSpaceStore();
     if (spaceStore.currentSpaceId) {
-      // 自定义 Header Key，请根据后端要求修改，例如 'X-Space-Id' 或 'Tenant-Id'
       headers['X-Space-Id'] = spaceStore.currentSpaceId;
     }
 
-    const response = await fetch(`/api/v1/chat-client/stream`, {
+    // 从 data 中解构出 agentId，剩余部分作为 body
+    const { agentId, ...bodyData } = data;
+    
+    // 构造带参数的 URL
+    const url = `${AGENT_BASE_URL}/chat?agentId=${agentId || ''}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify(data)
+      body: JSON.stringify(bodyData)
     });
 
     if (!response.ok) {
@@ -116,11 +125,11 @@ export async function fetchChatStream(data, onData, onFinish, onError) {
           const chunk = parts[i].trim();
           if (chunk) {
             try {
+              // 尝试解析 JSON
               const json = JSON.parse(chunk);
               onData(json);
             } catch (e) {
-              console.error('解析流数据块时出错:', chunk, e);
-              onError(new Error('无法解析流数据。'));
+              console.warn('非 JSON 数据块或解析失败:', chunk);
             }
           }
         }

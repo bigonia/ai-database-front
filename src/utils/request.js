@@ -54,6 +54,14 @@ service.interceptors.response.use(
     //     // 如果后端返回的就是 List<BusinessSpace>，那么 res 就是数组
     //   };
     // }
+    // 如果是下载文件，直接返回完整的 response 对象（包含 headers, data 等）
+    if (
+      response.config.responseType === 'blob' || 
+      response.headers['content-type']?.includes('application/octet-stream') ||
+      response.headers['content-type']?.includes('application/vnd.openxmlformats')
+    ) {
+      return response
+    }
 
     // if the custom code is not 20000, it is judged as an error.
     if (res.code !== 20000) {

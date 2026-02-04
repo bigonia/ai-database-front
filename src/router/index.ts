@@ -169,6 +169,26 @@ export const asyncRoutes: RouteRecordRaw[] = [
   },
 
   {
+    path: '/agent',
+    component: Layout, // 假设 Layout 是你的主布局组件
+    // redirect: '/agent/list',
+    // name: 'AgentManager',
+    meta: {
+      title: 'Agent 管理',
+      icon: 'component', // 替换为你项目中的图标
+      roles: ['guest']
+    },
+    children: [
+      {
+        path: 'list',
+        component: () => import('@/views/agent/index.vue'),
+        name: 'AgentList',
+        meta: { title: 'Agent 列表', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+      }
+    ]
+  },
+
+  {
     path: '/ai-chat',
     component: Layout,
     meta: {
