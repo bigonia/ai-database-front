@@ -42,26 +42,14 @@
           <span>Password : any</span>
         </div>
 
-        <el-button class="thirdparty-button" type="primary" @click="showDialog = true">
-          Or connect with
-        </el-button>
       </div>
     </el-form>
-
-    <el-dialog title="Or connect with" v-model="showDialog">
-      Can not be simulated on local, so please combine you own business simulation! ! !
-      <br>
-      <br>
-      <br>
-      <social-sign />
-    </el-dialog>
   </div>
 </template>
 
 <script lang="ts">
 import { validUsername } from '@/utils/validate';
 import { defineComponent } from 'vue';
-import SocialSign from './components/SocialSignin.vue';
 import type { FormItemRule } from 'element-plus';
 import type { IForm } from '@/types/element-plus';
 import store from '@/store';
@@ -73,7 +61,6 @@ interface QueryType {
 
 export default defineComponent({
   name: 'Login',
-  components: { SocialSign },
   data() {
     const validateUsername: FormItemRule['validator'] = (_rule, value, callback) => {
       if (!validUsername(value)) {
@@ -102,7 +89,6 @@ export default defineComponent({
       passwordType: 'password',
       capsTooltip: false,
       loading: false,
-      showDialog: false,
       redirect: undefined,
       otherQuery: {}
     };
@@ -310,12 +296,6 @@ $light_gray: #eee;
     color: $dark_gray;
     cursor: pointer;
     user-select: none;
-  }
-
-  .thirdparty-button {
-    position: absolute;
-    right: 0;
-    bottom: 6px;
   }
 
   @media only screen and (max-width: 470px) {

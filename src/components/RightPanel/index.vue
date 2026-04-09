@@ -16,10 +16,26 @@
 </template>
 
 <script>
-import { addClass, removeClass } from '@/utils';
 import { defineComponent } from 'vue';
 import store from '@/store';
 import { Close, Setting } from '@element-plus/icons-vue';
+
+function hasClass(ele, cls) {
+  return ele.className.match(new RegExp(`(\\s|^)${cls}(\\s|$)`));
+}
+
+function addClass(ele, cls) {
+  if (!hasClass(ele, cls)) {
+    ele.className += ` ${cls}`;
+  }
+}
+
+function removeClass(ele, cls) {
+  if (hasClass(ele, cls)) {
+    const reg = new RegExp(`(\\s|^)${cls}(\\s|$)`);
+    ele.className = ele.className.replace(reg, ' ');
+  }
+}
 
 export default defineComponent({
   name: 'RightPanel',

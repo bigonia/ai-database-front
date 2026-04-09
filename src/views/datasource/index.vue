@@ -22,7 +22,7 @@
           >
             <el-option v-for="item in dbTypeOptions" :key="item" :label="item" :value="item" />
           </el-select>
-          <el-button v-waves class="filter-item" type="primary" :icon="Search" @click="handleFilter">
+          <el-button class="filter-item" type="primary" :icon="Search" @click="handleFilter">
             搜索
           </el-button>
         </div>
@@ -396,11 +396,9 @@ import {
   generateMetadata,
   streamTable
 } from '@/api/datasource';
-import waves from '@/directive/waves';
 
 export default {
   name: 'DatasourceManagement',
-  directives: { waves },
   components: { 
     DataBoard, Monitor, Coin, DataLine, Grid, Cpu, Document, Files 
   },

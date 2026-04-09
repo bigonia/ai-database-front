@@ -7,19 +7,7 @@
 
     <div class="right-menu">
       <template v-if="device !== 'mobile'">
-        <search id="header-search" class="right-menu-item" />
-
-        <error-log class="errLog-container right-menu-item hover-effect" />
-
-        <screenfull id="screenfull" class="right-menu-item hover-effect" />
-
-        <el-tooltip content="全局组件尺寸" effect="dark" placement="bottom">
-          <size-select id="size-select" class="right-menu-item hover-effect" />
-        </el-tooltip>
-        
-        <!-- [NEW] 业务空间选择器 -->
         <space-select class="right-menu-item hover-effect" />
-
       </template>
 
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
@@ -58,11 +46,6 @@ import { mapState } from 'pinia';
 import store from '@/store';
 import Breadcrumb from '@/components/Breadcrumb';
 import Hamburger from '@/components/Hamburger';
-import ErrorLog from '@/components/ErrorLog';
-import Screenfull from '@/components/Screenfull';
-import SizeSelect from '@/components/SizeSelect';
-import Search from '@/components/HeaderSearch';
-// [NEW] 引入组件
 import SpaceSelect from '@/components/SpaceSelect/index.vue';
 import { defineComponent } from 'vue';
 import { CaretBottom } from '@element-plus/icons-vue';
@@ -71,12 +54,7 @@ export default defineComponent({
   components: {
     Breadcrumb,
     Hamburger,
-    ErrorLog,
-    Screenfull,
-    SizeSelect,
-    Search,
     CaretBottom,
-    // [NEW] 注册组件
     SpaceSelect
   },
   computed: {
@@ -123,11 +101,6 @@ export default defineComponent({
 
   .breadcrumb-container {
     float: left;
-  }
-
-  .errLog-container {
-    display: inline-block;
-    vertical-align: top;
   }
 
   .right-menu {

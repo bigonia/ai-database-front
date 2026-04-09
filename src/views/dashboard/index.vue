@@ -1,32 +1,11 @@
 <template>
-  <div class="dashboard-container">
-    <component :is="currentRole" />
+  <div class="dashboard-container app-container">
+    <el-card shadow="never">
+      <h2>AI 数据平台</h2>
+      <p>欢迎使用系统，请通过左侧菜单进入业务模块。</p>
+    </el-card>
   </div>
 </template>
 
-<script>
-import { defineComponent } from 'vue';
-import { mapState } from 'pinia';
-import adminDashboard from './admin';
-import editorDashboard from './editor';
-import store from '@/store';
-
-export default defineComponent({
-  name: 'Dashboard',
-  components: { adminDashboard, editorDashboard },
-  data() {
-    return {
-      currentRole: 'adminDashboard'
-    };
-  },
-  computed: {
-    ...mapState(store.user, ['roles'])
-  },
-  created() {
-    console.log('dashboard created');
-    if (!this.roles.includes('admin')) {
-      this.currentRole = 'editorDashboard';
-    }
-  }
-});
+<script setup>
 </script>

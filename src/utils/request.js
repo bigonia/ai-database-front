@@ -1,10 +1,7 @@
 import axios from 'axios';
-import store from '@/store';
 import { getToken } from '@/utils/auth';
-// [NEW] 引入 Space Store
 import { useSpaceStore } from '@/store/modules/space';
-
-console.log('import.meta.env=', import.meta.env);
+import userStore from '@/store/modules/user';
 
 // create an axios instance
 const service = axios.create({
@@ -17,15 +14,24 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     // do something before request is sent
-
-    if (store.user().token) {
+    const token = getToken();
+    if (token) {
       // let each request carry token
-      config.headers['Authorization'] = 'Bearer ' + getToken();
+      config.headers['Authorization'] = 'Bearer ' + token;
     }
-    // 注入业务空间 ID
-    const spaceStore = useSpaceStore();
-    if (spaceStore.currentSpaceId) {
-      config.headers['X-Space-Id'] = spaceStore.currentSpaceId;
+
+    // 注入业务空间 ID。优先使用本地缓存，避免请求层依赖 store 生命周期。
+    let currentSpaceId = localStorage.getItem('space_id') || '';
+    if (!currentSpaceId) {
+      try {
+        const spaceStore = useSpaceStore();
+        currentSpaceId = spaceStore.currentSpaceId || '';
+      } catch (e) {
+        // ignore pinia initialization timing errors in request layer
+      }
+    }
+    if (currentSpaceId) {
+      config.headers['X-Space-Id'] = currentSpaceId;
     }
 
     return config;
@@ -82,7 +88,7 @@ service.interceptors.response.use(
           cancelButtonText: 'Cancel',
           type: 'warning'
         }).then(() => {
-          store.user().resetToken();
+          userStore().resetToken();
           location.reload();
         });
       }
