@@ -64,7 +64,7 @@ export default defineConfig(({ command, mode }) => {
       })
     ],
     server: {
-      host: 'localhost',
+      host: '0.0.0.0',
       port: 8001,
       proxy: {
         '/api-test': {
@@ -77,7 +77,8 @@ export default defineConfig(({ command, mode }) => {
         },
         // 代理所有 /api 开头的请求到后端服务
         '/api': {
-          target: 'http://172.16.11.23:8080',
+          // target: 'http://172.16.11.23:8080',
+          target: 'http://127.0.0.1:8080',
           changeOrigin: true
         }
       }

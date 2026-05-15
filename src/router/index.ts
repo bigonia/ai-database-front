@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import type { Router, RouteRecordRaw, RouteComponent } from 'vue-router';
+import type { RouteComponent, RouteRecordRaw, Router } from 'vue-router';
 
 /* Layout */
 const Layout = (): RouteComponent => import('@/layout/index.vue');
@@ -45,7 +45,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         path: 'dashboard',
         component: () => import('@/views/dashboard/index.vue'),
         name: 'Dashboard',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: 'Dashboard', icon: 'dashboard', affix: true }
       }
     ]
   },
@@ -59,7 +59,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         path: 'index',
         component: () => import('@/views/profile/index.vue'),
         name: 'Profile',
-        meta: { title: '个人中心', icon: 'user', noCache: true }
+        meta: { title: 'Profile', icon: 'user', noCache: true }
       }
     ]
   }
@@ -70,7 +70,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
     path: '/agent',
     component: Layout,
     meta: {
-      title: 'Agent 管理',
+      title: 'Agent Management',
       icon: 'component',
       roles: ['guest']
     },
@@ -79,7 +79,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
         path: 'list',
         component: () => import('@/views/agent/index.vue'),
         name: 'AgentList',
-        meta: { title: 'Agent 列表', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+        meta: { title: 'Agent List', icon: 'list', roles: ['admin', 'editor', 'guest'] }
       }
     ]
   },
@@ -93,7 +93,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
         name: 'AiChat',
         component: () => import('@/views/ai-chat/index.vue'),
         meta: {
-          title: 'AI 对话',
+          title: 'AI Chat',
           icon: 'wechat',
           roles: ['admin', 'editor', 'guest']
         }
@@ -106,7 +106,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
     redirect: '/datasource/list',
     name: 'Datasource',
     meta: {
-      title: '数据源管理',
+      title: 'Datasource',
       icon: 'table',
       roles: ['admin', 'editor', 'guest']
     },
@@ -115,44 +115,44 @@ export const asyncRoutes: RouteRecordRaw[] = [
         path: 'list',
         name: 'DatasourceList',
         component: () => import('@/views/datasource/index.vue'),
-        meta: { title: '数据源列表', icon: 'table', roles: ['editor', 'guest'] }
+        meta: { title: 'Datasource List', icon: 'table', roles: ['editor', 'guest'] }
       }
     ]
   },
   {
     path: '/sdui',
     component: Layout,
-    redirect: '/sdui/apps',
+    redirect: '/sdui/overview',
     name: 'Sdui',
     meta: {
-      title: 'SDUI 管理',
+      title: 'SDUI Console',
       icon: 'component',
-      roles: ['admin', 'editor', 'guest']
+      roles: ['admin', 'editor', 'guest', 'sdui_only']
     },
     children: [
       {
-        path: 'apps',
-        name: 'SduiApps',
-        component: () => import('@/views/sdui/apps.vue'),
-        meta: { title: '应用管理', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+        path: 'overview',
+        name: 'SduiOverview',
+        component: () => import('@/views/sdui/overview.vue'),
+        meta: { title: 'Overview', icon: 'dashboard', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
         path: 'devices',
         name: 'SduiDevices',
         component: () => import('@/views/sdui/devices.vue'),
-        meta: { title: '设备管理', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+        meta: { title: 'Devices', icon: 'device', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'assets',
-        name: 'SduiAssets',
-        component: () => import('@/views/sdui/assets.vue'),
-        meta: { title: '资源管理', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+        path: 'workflows',
+        name: 'SduiWorkflows',
+        component: () => import('@/views/sdui/workflows.vue'),
+        meta: { title: 'Workflows', icon: 'list', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'runtime',
-        name: 'SduiRuntime',
-        component: () => import('@/views/sdui/runtime.vue'),
-        meta: { title: '运行时监控', icon: 'list', roles: ['admin', 'editor', 'guest'] }
+        path: 'editor/:id?',
+        name: 'SduiEditor',
+        component: () => import('@/views/sdui/editor.vue'),
+        meta: { title: 'Editor', icon: 'list', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       }
     ]
   },
@@ -161,13 +161,13 @@ export const asyncRoutes: RouteRecordRaw[] = [
     component: Layout,
     redirect: '/file-ops/manager',
     name: 'FileOps',
-    meta: { title: '文件管理', icon: 'documentation', roles: ['editor', 'guest'] },
+    meta: { title: 'File Manager', icon: 'documentation', roles: ['editor', 'guest'] },
     children: [
       {
         path: 'manager',
         name: 'FileManager',
         component: () => import('@/views/file-manager/index.vue'),
-        meta: { title: '文件列表', icon: 'documentation', roles: ['editor', 'guest'] }
+        meta: { title: 'File List', icon: 'documentation', roles: ['editor', 'guest'] }
       }
     ]
   },
@@ -177,7 +177,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
     redirect: '/domain-docs/list',
     name: 'DomainDocs',
     meta: {
-      title: '领域文档管理',
+      title: 'Domain Docs',
       icon: 'documentation',
       roles: ['editor', 'guest']
     },
@@ -186,7 +186,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
         path: 'list',
         component: () => import('@/views/domain-docs/index.vue'),
         name: 'DomainDocList',
-        meta: { title: '领域文档', icon: 'list', noCache: true, roles: ['editor', 'guest'] }
+        meta: { title: 'Domain Documents', icon: 'list', noCache: true, roles: ['editor', 'guest'] }
       }
     ]
   },
@@ -196,7 +196,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
     redirect: '/knowledge/list',
     name: 'KnowledgeBase',
     meta: {
-      title: '知识库管理',
+      title: 'Knowledge Base',
       icon: 'documentation',
       roles: ['editor', 'guest']
     },
@@ -205,18 +205,19 @@ export const asyncRoutes: RouteRecordRaw[] = [
         path: 'list',
         component: () => import('@/views/knowledge/index.vue'),
         name: 'DocumentList',
-        meta: { title: '向量库', icon: 'list', roles: ['editor', 'guest'] }
+        meta: { title: 'Vector Store', icon: 'list', roles: ['editor', 'guest'] }
       }
     ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true }}
+  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true } }
 ];
 
-const createTheRouter = (): Router => createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
-  scrollBehavior: () => ({ top: 0 }),
-  routes: constantRoutes
-});
+const createTheRouter = (): Router =>
+  createRouter({
+    history: createWebHashHistory(import.meta.env.BASE_URL),
+    scrollBehavior: () => ({ top: 0 }),
+    routes: constantRoutes
+  });
 
 interface RouterPro extends Router {
   matcher: unknown;

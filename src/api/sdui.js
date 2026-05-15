@@ -2,175 +2,132 @@ import request from '@/utils/request';
 
 const BASE_URL = '/api/v1/sdui';
 
-export function generateApp(data) {
-  return request({
-    url: `${BASE_URL}/apps/generate`,
-    method: 'post',
-    data
-  });
-}
-
-export function reviseApp(appId, data) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/revise`,
-    method: 'post',
-    data
-  });
-}
-
-export function getAppList() {
-  return request({
-    url: `${BASE_URL}/apps`,
-    method: 'get'
-  });
-}
-
-export function getAppVersions(appId) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/versions`,
-    method: 'get'
-  });
-}
-
-export function publishApp(appId, data) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/publish`,
-    method: 'post',
-    data
-  });
-}
+// ── Devices ──────────────────────────────────────────────────
 
 export function getDeviceList() {
-  return request({
-    url: `${BASE_URL}/devices`,
-    method: 'get'
-  });
+  return request({ url: `${BASE_URL}/devices`, method: 'get' });
 }
 
-export function getUnclaimedDeviceList() {
-  return request({
-    url: `${BASE_URL}/devices/unclaimed`,
-    method: 'get'
-  });
+export function getDeviceDetail(deviceId) {
+  return request({ url: `${BASE_URL}/devices/${deviceId}`, method: 'get' });
+}
+
+export function getUnclaimedDevices() {
+  return request({ url: `${BASE_URL}/devices/unclaimed`, method: 'get' });
 }
 
 export function claimDevice(deviceId, data) {
-  return request({
-    url: `${BASE_URL}/devices/${deviceId}/claim`,
-    method: 'post',
-    data
-  });
+  return request({ url: `${BASE_URL}/devices/${deviceId}/claim`, method: 'post', data });
 }
 
 export function getDeviceTelemetry(deviceId) {
-  return request({
-    url: `${BASE_URL}/devices/${deviceId}/telemetry`,
-    method: 'get'
-  });
+  return request({ url: `${BASE_URL}/devices/${deviceId}/telemetry`, method: 'get' });
 }
 
-export function controlDevice(deviceId, data) {
-  return request({
-    url: `${BASE_URL}/devices/${deviceId}/control`,
-    method: 'post',
-    data
-  });
+export function sendDeviceControl(deviceId, data) {
+  return request({ url: `${BASE_URL}/devices/${deviceId}/control`, method: 'post', data });
 }
 
-export function getRuntimeWorkers() {
-  return request({
-    url: `${BASE_URL}/runtime/workers`,
-    method: 'get'
-  });
-}
+// ── Ops ──────────────────────────────────────────────────────
 
 export function getOpsOverview() {
+  return request({ url: `${BASE_URL}/ops/overview`, method: 'get' });
+}
+
+// ── Section orchestration (debug) ────────────────────────────
+
+export function getSectionPresets() {
+  return request({ url: `${BASE_URL}/section/presets`, method: 'get' });
+}
+
+export function sendScene(deviceId, preset) {
   return request({
-    url: `${BASE_URL}/ops/overview`,
-    method: 'get'
+    url: `${BASE_URL}/section/scene/${deviceId}`,
+    method: 'post',
+    params: { preset }
   });
 }
 
-export function registerAsset(data) {
+export function startAutoUpdate(deviceId, preset, intervalMs) {
   return request({
-    url: `${BASE_URL}/assets`,
+    url: `${BASE_URL}/section/auto/${deviceId}/start`,
+    method: 'post',
+    params: { preset, intervalMs }
+  });
+}
+
+export function stopAutoUpdate(deviceId) {
+  return request({
+    url: `${BASE_URL}/section/auto/${deviceId}/stop`,
+    method: 'post'
+  });
+}
+
+export function getAutoUpdateStatus() {
+  return request({ url: `${BASE_URL}/section/auto/status`, method: 'get' });
+}
+
+export function getSectionCapability(deviceId) {
+  return request({ url: `${BASE_URL}/section/capability/${deviceId}`, method: 'get' });
+}
+
+// ── Workflow definitions ─────────────────────────────────────
+
+export function getWorkflowDefinitions() {
+  return request({ url: `${BASE_URL}/workflow/definition`, method: 'get' });
+}
+
+export function getWorkflowDefinition(id) {
+  return request({ url: `${BASE_URL}/workflow/definition/${id}`, method: 'get' });
+}
+
+export function createWorkflowDefinition(data) {
+  return request({
+    url: `${BASE_URL}/workflow/definition`,
     method: 'post',
     data
   });
 }
 
-export function getAssetList(params) {
+export function updateWorkflowDefinition(id, data) {
   return request({
-    url: `${BASE_URL}/assets`,
-    method: 'get',
-    params
-  });
-}
-
-export function getAssetSourceFiles(params) {
-  return request({
-    url: `${BASE_URL}/assets/source-files`,
-    method: 'get',
-    params
-  });
-}
-
-export function bindAppAsset(appId, data) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/assets:bind`,
-    method: 'post',
+    url: `${BASE_URL}/workflow/definition/${id}`,
+    method: 'put',
     data
   });
 }
 
-export function getAppAssets(appId) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/assets`,
-    method: 'get'
-  });
+export function deleteWorkflowDefinition(id) {
+  return request({ url: `${BASE_URL}/workflow/definition/${id}`, method: 'delete' });
 }
 
-export function unbindAppAsset(appId, bindingId) {
-  return request({
-    url: `${BASE_URL}/apps/${appId}/assets/${bindingId}`,
-    method: 'delete'
-  });
+// ── Node types (editor panel) ────────────────────────────────
+
+export function getWorkflowNodeTypes() {
+  return request({ url: `${BASE_URL}/workflow/node-types`, method: 'get' });
 }
 
-export function createAssetSet(data) {
+// ── Workflow runtime (debug) ─────────────────────────────────
+
+export function loadWorkflow(deviceId, definitionId) {
   return request({
-    url: `${BASE_URL}/asset-sets`,
+    url: `${BASE_URL}/workflow/${deviceId}/load`,
     method: 'post',
-    data
+    params: { definitionId }
   });
 }
 
-export function getAssetSetList(params) {
+export function unloadWorkflow(deviceId) {
+  return request({ url: `${BASE_URL}/workflow/${deviceId}/unload`, method: 'post' });
+}
+
+export function triggerWorkflow(deviceId, triggerId) {
   return request({
-    url: `${BASE_URL}/asset-sets`,
-    method: 'get',
-    params
+    url: `${BASE_URL}/workflow/${deviceId}/trigger/${triggerId}`,
+    method: 'post'
   });
 }
 
-export function addAssetSetItems(assetSetId, data) {
-  return request({
-    url: `${BASE_URL}/asset-sets/${assetSetId}/items`,
-    method: 'post',
-    data
-  });
-}
-
-export function getAssetSetItems(assetSetId) {
-  return request({
-    url: `${BASE_URL}/asset-sets/${assetSetId}/items`,
-    method: 'get'
-  });
-}
-
-export function removeAssetSetItem(assetSetId, itemId) {
-  return request({
-    url: `${BASE_URL}/asset-sets/${assetSetId}/items/${itemId}`,
-    method: 'delete'
-  });
+export function getWorkflowStatus(deviceId) {
+  return request({ url: `${BASE_URL}/workflow/${deviceId}/status`, method: 'get' });
 }

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Content package.json)",
+      "Bash(Select-String -Pattern \"vue-flow|@vue-flow\")",
+      "Bash(npm install *)",
+      "Bash(Remove-Item \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\\\\index.vue\", \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\\\\apps.vue\", \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\\\\runtime.vue\", \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\\\\assets.vue\", \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\\\\deployments.vue\" -ErrorAction SilentlyContinue)",
+      "Bash(Get-ChildItem \"d:\\\\src\\\\vue3-element-admin\\\\src\\\\views\\\\sdui\")",
+      "Bash(npx vite *)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(Get-ChildItem *)",
+      "mcp__ide__getDiagnostics",
+      "Skill(superpowers:systematic-debugging)",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(npx vite build --mode build_test 2>&1 | Select-Object -First 30)"
+    ]
+  }
+}
