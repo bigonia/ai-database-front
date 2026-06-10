@@ -16,7 +16,7 @@
           搜索
         </el-button>
       </div>
-      
+
       <div class="filter-right">
         <el-button class="filter-item" style="margin-left: 10px;" type="success" :icon="Setting" @click="handleModelConfig">
           模型配置
@@ -41,16 +41,16 @@
           <span class="link-type" @click="handleUpdate(row)">{{ row.id }}</span>
         </template>
       </el-table-column>
-      
+
       <!-- 优化宽度：名称列不再占据过多空间 -->
       <el-table-column label="名称" prop="name" width="180" show-overflow-tooltip />
-      
+
       <el-table-column label="绑定模型" width="150" align="center">
         <template #default="{ row }">
           <el-tag>{{ row.modelName }}</el-tag>
         </template>
       </el-table-column>
-      
+
       <el-table-column label="已启用工具" align="center" min-width="120">
         <template #default="{ row }">
           <el-tag v-if="row.toolNames && row.toolNames.length" type="info" effect="plain">
@@ -61,14 +61,14 @@
       </el-table-column>
 
       <el-table-column label="Advisor" min-width="200">
-         <template #default="{ row }">
+        <template #default="{ row }">
           <div v-if="row.advisors && row.advisors.length">
-             <el-tag v-for="adv in row.advisors" :key="adv" type="warning" size="small" style="margin-right:4px">{{ adv }}</el-tag>
+            <el-tag v-for="adv in row.advisors" :key="adv" type="warning" size="small" style="margin-right:4px">{{ adv }}</el-tag>
           </div>
           <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      
+
       <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width">
         <template #default="{ row }">
           <el-button type="primary" size="small" link @click="handleUpdate(row)">
@@ -175,9 +175,9 @@
             >
               <el-table-column type="selection" width="45" align="center" />
               <el-table-column prop="name" label="工具名称" width="150" show-overflow-tooltip>
-                 <template #default="{ row }">
-                   <span style="font-weight: 500;">{{ row.name }}</span>
-                 </template>
+                <template #default="{ row }">
+                  <span style="font-weight: 500;">{{ row.name }}</span>
+                </template>
               </el-table-column>
               <el-table-column prop="description" label="功能描述" show-overflow-tooltip />
             </el-table>
@@ -231,8 +231,8 @@ const listQuery = reactive({
 // 计算属性：前端搜索过滤
 const filteredList = computed(() => {
   if (!listQuery.name) return list.value;
-  return list.value.filter(item => 
-    (item.name && item.name.includes(listQuery.name)) || 
+  return list.value.filter(item =>
+    (item.name && item.name.includes(listQuery.name)) ||
     (item.id && item.id.includes(listQuery.name))
   );
 });
@@ -320,7 +320,6 @@ async function fetchResources() {
     // 3. 获取 Advisors
     const advRes = await getAdvisorList();
     availableAdvisors.value = Array.isArray(advRes) ? advRes : (advRes.data || []);
-    
   } catch (error) {
     console.error('资源加载失败', error);
   }
@@ -375,7 +374,7 @@ function submitModel() {
 // --- Methods: Agent CRUD ---
 function resetTempAgent() {
   // 创建时不设 ID，由后端生成
-  delete tempAgent.id; 
+  delete tempAgent.id;
   tempAgent.name = '';
   tempAgent.modelName = '';
   tempAgent.systemPrompt = '';
@@ -387,13 +386,13 @@ function handleCreate() {
   resetTempAgent();
   dialogStatus.value = 'create';
   drawerVisible.value = true;
-  
+
   // 重置表单校验与表格选中状态
   nextTick(() => {
     dataFormRef.value?.clearValidate();
     toolTableRef.value?.clearSelection();
   });
-  
+
   fetchResources();
 }
 
@@ -407,7 +406,7 @@ function handleUpdate(row) {
 
   dialogStatus.value = 'update';
   drawerVisible.value = true;
-  
+
   fetchResources(); // 确保工具列表是最新的
 
   // 回显工具选中状态

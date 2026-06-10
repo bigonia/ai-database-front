@@ -22,9 +22,9 @@
               <i class="el-icon-search input-icon-large" style="line-height: 50px; margin-left: 5px;" />
             </template>
           </el-input>
-          <el-button 
-            type="primary" 
-            class="search-btn-large" 
+          <el-button
+            type="primary"
+            class="search-btn-large"
             :loading="searchLoading"
             @click="handleSearch"
           >
@@ -44,7 +44,7 @@
               size="small"
               class="param-input"
             />
-            
+
             <el-divider direction="vertical" />
 
             <span class="param-label">相似度阈值 (Threshold):</span>
@@ -61,7 +61,7 @@
           </div>
 
           <div class="action-group">
-             <el-button
+            <el-button
               type="text"
               icon="el-icon-refresh"
               class="refresh-btn"
@@ -116,9 +116,9 @@
 
       <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
         <template #default="{ row }">
-          <el-button 
-            type="primary" 
-            size="small" 
+          <el-button
+            type="primary"
+            size="small"
             :disabled="!row.sourceId"
             @click="handleViewChunks(row)"
           >
@@ -129,9 +129,9 @@
             @confirm="handleDelete(row)"
           >
             <template #reference>
-              <el-button 
-                size="small" 
-                type="danger" 
+              <el-button
+                size="small"
+                type="danger"
                 style="margin-left: 10px;"
                 :disabled="!row.sourceId"
               >
@@ -145,9 +145,9 @@
 
     <!-- 优化后的语义搜索结果对话框 -->
     <!-- Vue 3 修改点：:visible.sync 改为 v-model -->
-    <el-dialog 
-      title="语义搜索结果" 
-      v-model="searchDialogVisible" 
+    <el-dialog
+      title="语义搜索结果"
+      v-model="searchDialogVisible"
       width="70%"
       custom-class="search-result-dialog"
     >
@@ -155,29 +155,29 @@
         <div v-if="searchResults.length === 0" class="empty-result">
           <i class="el-icon-document-remove"></i> 暂无匹配结果
         </div>
-        
-        <div 
-          v-for="(item, index) in searchResults" 
-          :key="index" 
+
+        <div
+          v-for="(item, index) in searchResults"
+          :key="index"
           class="search-item-card"
         >
           <div class="search-item-header">
             <el-tag size="small" effect="dark" type="success">Top {{ index + 1 }}</el-tag>
             <span class="search-score" v-if="item.score">相似度: {{ item.score.toFixed(4) }}</span>
           </div>
-          
+
           <div class="search-item-content">
             <!-- 修复点：content 改为 text -->
             {{ item.text }}
           </div>
-          
+
           <div class="search-item-meta" v-if="item.metadata && Object.keys(item.metadata).length > 0">
             <div class="meta-title">元数据信息:</div>
             <div class="meta-tags">
-              <el-tag 
-                v-for="(val, key) in item.metadata" 
-                :key="key" 
-                size="small" 
+              <el-tag
+                v-for="(val, key) in item.metadata"
+                :key="key"
+                size="small"
                 type="info"
                 class="meta-tag"
               >
@@ -251,14 +251,14 @@
 
 <script>
 // 注意：如果在 Vue 3 + Vite 环境下，Element Icons 可能需要单独导入
-// import { Search, Refresh } from '@element-plus/icons-vue' 
+// import { Search, Refresh } from '@element-plus/icons-vue'
 import {
   fetchDocumentList,
   searchDocuments,
   deleteDocument,
   fetchDocumentChunks,
   updateChunk
-} from '@/api/knowledge'
+} from '@/api/knowledge';
 
 export default {
   name: 'KnowledgeBase',
@@ -283,120 +283,120 @@ export default {
       currentDocName: '',
       chunksList: [],
       chunksLoading: false
-    }
+    };
   },
   created() {
-    this.getList()
+    this.getList();
   },
   methods: {
     // 获取文档列表
     async getList() {
-      this.listLoading = true
+      this.listLoading = true;
       try {
-        const response = await fetchDocumentList()
+        const response = await fetchDocumentList();
         // 增加空值保护，防止 response.data 为 null
-        this.list = response.data || []
+        this.list = response.data || [];
       } catch (error) {
-        console.error(error)
-        this.list = []
+        console.error(error);
+        this.list = [];
       } finally {
-        this.listLoading = false
+        this.listLoading = false;
       }
     },
 
     // 搜索
     async handleSearch() {
       if (!this.searchQuery.query.trim()) {
-        this.$message.warning('请输入搜索关键词')
-        return
+        this.$message.warning('请输入搜索关键词');
+        return;
       }
-      this.searchLoading = true
-      this.searchDialogVisible = true
+      this.searchLoading = true;
+      this.searchDialogVisible = true;
       try {
-        const response = await searchDocuments(this.searchQuery)
-        this.searchResults = response.data || []
+        const response = await searchDocuments(this.searchQuery);
+        this.searchResults = response.data || [];
       } catch (error) {
-        this.searchResults = []
+        this.searchResults = [];
       } finally {
-        this.searchLoading = false
+        this.searchLoading = false;
       }
     },
 
     // 删除文档
     async handleDelete(row) {
-      if (!row.sourceId) return
+      if (!row.sourceId) return;
       try {
-        await deleteDocument(row.sourceId)
-        this.$message.success('删除成功')
-        const index = this.list.indexOf(row)
+        await deleteDocument(row.sourceId);
+        this.$message.success('删除成功');
+        const index = this.list.indexOf(row);
         if (index > -1) {
-          this.list.splice(index, 1)
+          this.list.splice(index, 1);
         }
       } catch (error) {
-        console.error(error)
+        console.error(error);
       }
     },
 
     // 查看分片 (打开抽屉)
     async handleViewChunks(row) {
       if (!row.sourceId) {
-        this.$message.error('无效的文档ID')
-        return
+        this.$message.error('无效的文档ID');
+        return;
       }
-      this.currentDocName = row.sourceName || '未命名文档'
-      this.drawerVisible = true
-      this.chunksLoading = true
-      this.chunksList = []
+      this.currentDocName = row.sourceName || '未命名文档';
+      this.drawerVisible = true;
+      this.chunksLoading = true;
+      this.chunksList = [];
 
       try {
-        const response = await fetchDocumentChunks(row.sourceId)
-        const data = response.data || []
+        const response = await fetchDocumentChunks(row.sourceId);
+        const data = response.data || [];
         // 为每个分片添加编辑状态控制字段
         this.chunksList = data.map(item => ({
           ...item,
           isEditing: false,
           tempContent: item.content
-        }))
+        }));
       } catch (error) {
-        console.error(error)
+        console.error(error);
       } finally {
-        this.chunksLoading = false
+        this.chunksLoading = false;
       }
     },
 
     handleDrawerClose(done) {
-      done()
+      done();
     },
 
     // 开启分片编辑
     enableEditChunk(chunk) {
-      chunk.isEditing = true
-      chunk.tempContent = chunk.content
+      chunk.isEditing = true;
+      chunk.tempContent = chunk.content;
     },
 
     // 取消分片编辑
     cancelEditChunk(chunk) {
-      chunk.isEditing = false
+      chunk.isEditing = false;
     },
 
     // 提交分片更新
     async submitChunkEdit(chunk) {
       if (!chunk.tempContent.trim()) {
-        this.$message.warning('内容不能为空')
-        return
+        this.$message.warning('内容不能为空');
+        return;
       }
 
       try {
-        await updateChunk(chunk.id, chunk.tempContent)
-        this.$message.success('更新分片成功，向量已重算')
-        chunk.content = chunk.tempContent
-        chunk.isEditing = false
+        await updateChunk(chunk.id, chunk.tempContent);
+        this.$message.success('更新分片成功，向量已重算');
+        chunk.content = chunk.tempContent;
+        chunk.isEditing = false;
       } catch (error) {
-        console.error(error)
+        console.error(error);
       }
     }
   }
-}
+};
 </script>
 
 <style scoped>

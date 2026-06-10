@@ -27,7 +27,7 @@
           <span class="link-type" @click="handleViewDetails(row)">{{ row.docName }}</span>
         </template>
       </el-table-column>
-      
+
       <!-- 文档模式 DocMode -->
       <el-table-column label="模式" width="100px" align="center">
         <template #default="{row}">
@@ -87,7 +87,7 @@
           <el-button type="primary" link size="small" @click="handleVectorize(row)">
             向量化
           </el-button>
-          
+
           <!-- 低频操作折叠 -->
           <el-dropdown trigger="click" style="margin-left: 10px;">
             <el-button type="primary" link size="small">
@@ -126,18 +126,18 @@
 
         <!-- 标签页2：内容预览 (分页) -->
         <el-tab-pane label="内容预览 (Context)" name="content">
-           <div class="alert-info" v-if="tempRow.docMode === 'VIRTUAL'">
-             <i class="el-icon-info"></i> 当前为虚拟文档，此处仅展示部分预览数据。如需查看完整数据，请切换至“实时流预览”标签页。
-           </div>
-           
-           <div v-loading="contextLoading">
-             <div v-if="contextList && contextList.length > 0">
+          <div class="alert-info" v-if="tempRow.docMode === 'VIRTUAL'">
+            <i class="el-icon-info"></i> 当前为虚拟文档，此处仅展示部分预览数据。如需查看完整数据，请切换至“实时流预览”标签页。
+          </div>
+
+          <div v-loading="contextLoading">
+            <div v-if="contextList && contextList.length > 0">
               <div class="content-summary">
                 共 {{ contextTotal }} 个片段
               </div>
               <div class="chunk-list">
-                <div 
-                  v-for="(chunk, index) in contextList" 
+                <div
+                  v-for="(chunk, index) in contextList"
                   :key="chunk.id || index"
                   class="chunk-item"
                 >
@@ -172,7 +172,7 @@
               </div>
             </div>
             <el-empty v-else description="暂无预览数据"></el-empty>
-           </div>
+          </div>
         </el-tab-pane>
 
         <!-- 标签页3：实时流预览 -->
@@ -206,21 +206,21 @@
       <el-row :gutter="20" style="height: 600px;">
         <!-- 左侧：采样数据与AI -->
         <el-col :span="9" style="height: 100%; display: flex; flex-direction: column;">
-          
+
           <div class="panel-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 10px;">
-             <div class="panel-title">原始数据采样 (Sample Data)</div>
-             <div class="sample-box" v-loading="sampleLoading">
-                <pre v-if="sampleDataPreview">{{ sampleDataPreview }}</pre>
-                <div v-else class="empty-sample">暂无采样数据</div>
-             </div>
+            <div class="panel-title">原始数据采样 (Sample Data)</div>
+            <div class="sample-box" v-loading="sampleLoading">
+              <pre v-if="sampleDataPreview">{{ sampleDataPreview }}</pre>
+              <div v-else class="empty-sample">暂无采样数据</div>
+            </div>
           </div>
 
           <div class="panel-section" style="flex: 0 0 auto;">
             <div class="panel-title">AI 智能助手</div>
-            <el-input 
-              v-model="deriveTemp.requirement" 
-              type="textarea" 
-              :rows="4" 
+            <el-input
+              v-model="deriveTemp.requirement"
+              type="textarea"
+              :rows="4"
               placeholder="描述清洗需求，例如：&#10;1. 去除所有空行&#10;2. 将手机号替换为 ***&#10;3. 提取 JSON 中的 'price' 字段"
             ></el-input>
             <div style="margin-top: 10px;">
@@ -286,12 +286,12 @@
 </template>
 
 <script>
-import { 
+import {
   fetchList, deleteDocument, fetchSupportedActions, triggerBusinessAction, vectorDocument,
   createDerivedDocument, generateScriptAPI, getDocumentStreamUrl, fetchDocumentContext, exportDocumentExcel
-} from '@/api/domain-docs'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { getToken } from '@/utils/auth'
+} from '@/api/domain-docs';
+import { ElMessageBox, ElMessage } from 'element-plus';
+import { getToken } from '@/utils/auth';
 
 export default {
   name: 'DomainDocList',
@@ -300,12 +300,12 @@ export default {
       list: [],
       listLoading: true,
       supportedActions: {},
-      
+
       // 详情弹窗
       detailsVisible: false,
       activeDetailTab: 'info',
       tempRow: null,
-      
+
       // 内容分页预览
       contextLoading: false,
       contextList: [],
@@ -336,21 +336,21 @@ export default {
         useSample: true,
         script: ''
       }
-    }
+    };
   },
   created() {
-    this.getList()
-    this.getActions()
+    this.getList();
+    this.getActions();
   },
   methods: {
     getBaseUrl() {
       if (typeof import.meta !== 'undefined' && import.meta.env) {
-        return import.meta.env.VITE_APP_BASE_API || ''
+        return import.meta.env.VITE_APP_BASE_API || '';
       }
       if (typeof process !== 'undefined' && process.env) {
-        return process.env.VUE_APP_BASE_API || ''
+        return process.env.VUE_APP_BASE_API || '';
       }
-      return ''
+      return '';
     },
 
     getStatusType(status) {
@@ -360,123 +360,122 @@ export default {
         FAILED: 'danger',
         PENDING: 'info',
         CREATED: 'info'
-      }
-      return statusMap[status] || 'info'
+      };
+      return statusMap[status] || 'info';
     },
-    
+
     formatTime(timeStr) {
-      if (!timeStr) return ''
+      if (!timeStr) return '';
       try {
-        const date = new Date(timeStr)
-        if (isNaN(date.getTime())) return timeStr 
-        const y = date.getFullYear()
-        const m = (date.getMonth() + 1).toString().padStart(2, '0')
-        const d = date.getDate().toString().padStart(2, '0')
-        const h = date.getHours().toString().padStart(2, '0')
-        const i = date.getMinutes().toString().padStart(2, '0')
-        return `${y}-${m}-${d} ${h}:${i}`
+        const date = new Date(timeStr);
+        if (isNaN(date.getTime())) return timeStr;
+        const y = date.getFullYear();
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const d = date.getDate().toString().padStart(2, '0');
+        const h = date.getHours().toString().padStart(2, '0');
+        const i = date.getMinutes().toString().padStart(2, '0');
+        return `${y}-${m}-${d} ${h}:${i}`;
       } catch (e) {
-        return timeStr
+        return timeStr;
       }
     },
 
     async getList() {
-      this.listLoading = true
+      this.listLoading = true;
       try {
-        const response = await fetchList()
-        this.list = response.data || [] 
+        const response = await fetchList();
+        this.list = response.data || [];
       } catch (error) {
-        console.error(error)
+        console.error(error);
       } finally {
-        this.listLoading = false
+        this.listLoading = false;
       }
     },
 
     async getActions() {
       try {
-        const response = await fetchSupportedActions()
-        this.supportedActions = response.data || {}
-      } catch (error) { console.error(error) }
+        const response = await fetchSupportedActions();
+        this.supportedActions = response.data || {};
+      } catch (error) { console.error(error); }
     },
 
     // --- 详情、上下文分页与流式查看 ---
     handleViewDetails(row) {
-      this.tempRow = JSON.parse(JSON.stringify(row))
-      this.activeDetailTab = 'info'
-      this.detailsVisible = true
-      this.streamLogs = []
-      this.isStreaming = false
-      
+      this.tempRow = JSON.parse(JSON.stringify(row));
+      this.activeDetailTab = 'info';
+      this.detailsVisible = true;
+      this.streamLogs = [];
+      this.isStreaming = false;
+
       // 重置上下文分页状态
-      this.contextList = []
-      this.contextTotal = 0
-      this.contextListQuery.page = 1
+      this.contextList = [];
+      this.contextTotal = 0;
+      this.contextListQuery.page = 1;
     },
 
     handleDetailTabClick(tab) {
       if (tab.paneName === 'content') {
-        this.getContextList()
+        this.getContextList();
       }
     },
 
     async getContextList() {
-      if (!this.tempRow || !this.tempRow.id) return
-      this.contextLoading = true
+      if (!this.tempRow || !this.tempRow.id) return;
+      this.contextLoading = true;
       try {
         // 后端 Page 接口一般返回结构: { content: [], totalElements: 100, ... }
         // 具体视后端 ApiResponse 封装而定，这里假设 response.data 即为 Page 对象
         const response = await fetchDocumentContext(this.tempRow.id, {
           page: this.contextListQuery.page - 1, // Spring Boot Page 从 0 开始，ElementUI 从 1 开始
           size: this.contextListQuery.size
-        })
-        
-        const pageData = response.data || {}
-        this.contextList = pageData.content || []
-        this.contextTotal = pageData.totalElements || 0
-        
+        });
+
+        const pageData = response.data || {};
+        this.contextList = pageData.content || [];
+        this.contextTotal = pageData.totalElements || 0;
+
         // 预处理 metadata 展示开关
         this.contextList.forEach(chunk => {
-          chunk._showMeta = false
-        })
-
+          chunk._showMeta = false;
+        });
       } catch (error) {
-        console.error(error)
-        ElMessage.error('获取文档内容失败')
+        console.error(error);
+        ElMessage.error('获取文档内容失败');
       } finally {
-        this.contextLoading = false
+        this.contextLoading = false;
       }
     },
 
     handleContextSizeChange(val) {
-      this.contextListQuery.size = val
-      this.contextListQuery.page = 1 // 重置到第一页
-      this.getContextList()
+      this.contextListQuery.size = val;
+      this.contextListQuery.page = 1; // 重置到第一页
+      this.getContextList();
     },
 
     handleContextPageChange(val) {
-      this.contextListQuery.page = val
-      this.getContextList()
+      this.contextListQuery.page = val;
+      this.getContextList();
     },
 
     toggleChunkMeta(chunk) {
-      chunk._showMeta = !chunk._showMeta
+      chunk._showMeta = !chunk._showMeta;
     },
 
     handleClearStream() {
-      this.streamLogs = []
+      this.streamLogs = [];
     },
 
     async handleConnectStream() {
-      if (!this.tempRow || !this.tempRow.id) return
-      this.isStreaming = true
-      this.streamLogs = []
-      
-      const url = getDocumentStreamUrl(this.tempRow.id)
-      
+      if (!this.tempRow || !this.tempRow.id) return;
+      this.isStreaming = true;
+      this.streamLogs = [];
+
+      const url = getDocumentStreamUrl(this.tempRow.id);
+
       try {
-        const token = getToken()
-        const baseUrl = this.getBaseUrl()
-        const fullUrl = baseUrl + url
+        const token = getToken();
+        const baseUrl = this.getBaseUrl();
+        const fullUrl = baseUrl + url;
 
         const response = await fetch(fullUrl, {
           method: 'GET',
@@ -484,42 +483,42 @@ export default {
             'Authorization': token ? `Bearer ${token}` : '',
             'Accept': 'application/x-ndjson'
           }
-        })
+        });
 
-        if (!response.ok) throw new Error('Network response was not ok')
-        
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
         while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop()
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
 
           for (const line of lines) {
             if (line.trim()) {
               try {
-                const json = JSON.parse(line)
-                this.streamLogs.push(JSON.stringify(json))
+                const json = JSON.parse(line);
+                this.streamLogs.push(JSON.stringify(json));
               } catch (e) {
-                this.streamLogs.push(line)
+                this.streamLogs.push(line);
               }
               this.$nextTick(() => {
-                const box = this.$refs.consoleBox
-                if (box) box.scrollTop = box.scrollHeight
-              })
+                const box = this.$refs.consoleBox;
+                if (box) box.scrollTop = box.scrollHeight;
+              });
             }
           }
         }
       } catch (e) {
-        ElMessage.error('数据流连接中断或失败: ' + e.message)
-        console.error(e)
+        ElMessage.error('数据流连接中断或失败: ' + e.message);
+        console.error(e);
       } finally {
-        this.isStreaming = false
+        this.isStreaming = false;
       }
     },
 
@@ -530,53 +529,53 @@ export default {
         requirement: '',
         useSample: true,
         script: '# Python Script for Document Cleaning\n\ndef process(doc):\n    # doc 是一个字典，包含 content, metadata 等\n    # TODO: Implement your logic here\n    return doc\n'
-      }
-      this.sampleDataPreview = ''
-      this.deriveDialogVisible = true
-      
+      };
+      this.sampleDataPreview = '';
+      this.deriveDialogVisible = true;
+
       // 获取采样数据：调用分页接口，取前 3 条
-      this.sampleLoading = true
+      this.sampleLoading = true;
       try {
-        const response = await fetchDocumentContext(row.id, { page: 0, size: 3 })
-        const pageData = response.data || {}
-        const contentList = pageData.content || []
+        const response = await fetchDocumentContext(row.id, { page: 0, size: 3 });
+        const pageData = response.data || {};
+        const contentList = pageData.content || [];
 
         if (contentList && contentList.length > 0) {
           const samples = contentList.map(c => ({
             id: c.id,
             text: c.text,
             metadata: c.metadata
-          }))
-          this.sampleDataPreview = JSON.stringify(samples, null, 2)
+          }));
+          this.sampleDataPreview = JSON.stringify(samples, null, 2);
         } else {
-          this.sampleDataPreview = '该文档暂无内容数据'
+          this.sampleDataPreview = '该文档暂无内容数据';
         }
       } catch (e) {
-        this.sampleDataPreview = '无法加载采样数据: ' + e.message
+        this.sampleDataPreview = '无法加载采样数据: ' + e.message;
       } finally {
-        this.sampleLoading = false
+        this.sampleLoading = false;
       }
     },
 
     async handleAiGenerate() {
       if (!this.deriveTemp.requirement) {
-        ElMessage.warning('请输入清洗需求')
-        return
+        ElMessage.warning('请输入清洗需求');
+        return;
       }
-      
-      this.aiGenerating = true
-      this.deriveTemp.script = ''
+
+      this.aiGenerating = true;
+      this.deriveTemp.script = '';
 
       try {
-        const token = getToken()
+        const token = getToken();
         const requestBody = {
           docId: this.deriveTemp.parentId,
-          sampleData: this.deriveTemp.useSample ? this.sampleDataPreview : null, 
+          sampleData: this.deriveTemp.useSample ? this.sampleDataPreview : null,
           requirement: this.deriveTemp.requirement
-        }
+        };
 
-        const baseUrl = this.getBaseUrl()
-        const fullUrl = baseUrl + generateScriptAPI
+        const baseUrl = this.getBaseUrl();
+        const fullUrl = baseUrl + generateScriptAPI;
 
         const response = await fetch(fullUrl, {
           method: 'POST',
@@ -585,41 +584,40 @@ export default {
             'Authorization': token ? `Bearer ${token}` : ''
           },
           body: JSON.stringify(requestBody)
-        })
+        });
 
-        if (!response.ok) throw new Error('AI Service Error: ' + response.statusText)
+        if (!response.ok) throw new Error('AI Service Error: ' + response.statusText);
 
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
         while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          
-          const chunk = decoder.decode(value, { stream: true })
-          this.deriveTemp.script += chunk
-        }
+          const { done, value } = await reader.read();
+          if (done) break;
 
+          const chunk = decoder.decode(value, { stream: true });
+          this.deriveTemp.script += chunk;
+        }
       } catch (e) {
-        ElMessage.error('AI 生成失败: ' + e.message)
-        console.error(e)
+        ElMessage.error('AI 生成失败: ' + e.message);
+        console.error(e);
       } finally {
-        this.aiGenerating = false
+        this.aiGenerating = false;
       }
     },
 
     async submitDerive() {
-      if (!this.deriveTemp.script) return
-      this.deriveLoading = true
+      if (!this.deriveTemp.script) return;
+      this.deriveLoading = true;
       try {
-        await createDerivedDocument(this.deriveTemp.parentId, this.deriveTemp.script)
-        ElMessage.success('衍生文档创建任务已提交')
-        this.deriveDialogVisible = false
-        this.getList()
+        await createDerivedDocument(this.deriveTemp.parentId, this.deriveTemp.script);
+        ElMessage.success('衍生文档创建任务已提交');
+        this.deriveDialogVisible = false;
+        this.getList();
       } catch (e) {
-        console.error(e)
+        console.error(e);
       } finally {
-        this.deriveLoading = false
+        this.deriveLoading = false;
       }
     },
 
@@ -627,29 +625,29 @@ export default {
       try {
         this.listLoading = true;
         const response = await exportDocumentExcel(row.id);
-        
+
         // 兼容性处理：防止 request.js 拦截器未正确返回完整 response 的情况
         const isBlob = response instanceof Blob;
         const blobData = isBlob ? response : response.data;
-        
+
         if (!blobData || blobData.size === 0) {
           throw new Error('下载的文件内容为空，请检查文档是否有数据');
         }
-        
+
         let fileName = '导出数据.xlsx';
         const headers = isBlob ? {} : (response.headers || {});
-        
+
         if (headers) {
           // 尝试获取 content-disposition
           let contentDisposition = null;
           // 遍历查找，防止 key 大小写问题
-          for (let key in headers) {
+          for (const key in headers) {
             if (key.toLowerCase() === 'content-disposition') {
               contentDisposition = headers[key];
               break;
             }
           }
-          
+
           if (contentDisposition) {
             const rfc5987Regex = /filename\*=utf-8''(.+)/i;
             const rfc5987Match = contentDisposition.match(rfc5987Regex);
@@ -664,7 +662,7 @@ export default {
             }
           }
         }
-        
+
         const downloadUrl = window.URL.createObjectURL(blobData);
         const link = document.createElement('a');
         link.href = downloadUrl;
@@ -673,7 +671,7 @@ export default {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
-        
+
         ElMessage.success('Excel导出成功');
       } catch (error) {
         console.error('Excel导出失败:', error);
@@ -681,7 +679,7 @@ export default {
       } finally {
         this.listLoading = false;
       }
-    }, 
+    },
 
     // --- 通用动作 ---
     handleVectorize(row) {
@@ -689,59 +687,59 @@ export default {
         confirmButtonText: '确定', cancelButtonText: '取消', type: 'info'
       }).then(async () => {
         try {
-          await vectorDocument(row.id)
-          ElMessage.success('向量化任务触发成功')
-          this.getList()
-        } catch (e) { console.error(e) }
-      }).catch(() => {})
+          await vectorDocument(row.id);
+          ElMessage.success('向量化任务触发成功');
+          this.getList();
+        } catch (e) { console.error(e); }
+      }).catch(() => {});
     },
-    
+
     handleDelete(row) {
       ElMessageBox.confirm(`确认删除文档 "${row.docName}" 吗?`, '警告', {
         confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
       }).then(async () => {
-        await deleteDocument(row.id)
-        ElMessage.success('删除成功!')
-        this.getList()
-      }).catch(() => {})
+        await deleteDocument(row.id);
+        ElMessage.success('删除成功!');
+        this.getList();
+      }).catch(() => {});
     },
 
     handleTriggerAction(row) {
-      this.actionTemp = { id: row.id, docName: row.docName, action: '', paramsJson: '{}' }
-      this.actionDialogVisible = true
-      this.$nextTick(() => { if(this.$refs['actionForm']) this.$refs['actionForm'].clearValidate() })
+      this.actionTemp = { id: row.id, docName: row.docName, action: '', paramsJson: '{}' };
+      this.actionDialogVisible = true;
+      this.$nextTick(() => { if (this.$refs['actionForm']) this.$refs['actionForm'].clearValidate(); });
     },
 
     handleActionSelectChange(val) {
-      if (val === 'VECTORIZED') this.actionTemp.paramsJson = '{\n  "chunkSize": 500\n}'
-      else if (val === 'GEN_QA') this.actionTemp.paramsJson = '{\n  "count": 3\n}'
-      else this.actionTemp.paramsJson = '{}'
+      if (val === 'VECTORIZED') this.actionTemp.paramsJson = '{\n  "chunkSize": 500\n}';
+      else if (val === 'GEN_QA') this.actionTemp.paramsJson = '{\n  "count": 3\n}';
+      else this.actionTemp.paramsJson = '{}';
     },
 
     submitAction() {
       this.$refs['actionForm'].validate(async (valid) => {
         if (valid) {
-          let params = {}
+          let params = {};
           try {
             if (this.actionTemp.paramsJson && this.actionTemp.paramsJson.trim() !== '') {
-              params = JSON.parse(this.actionTemp.paramsJson)
+              params = JSON.parse(this.actionTemp.paramsJson);
             }
           } catch (e) {
-            ElMessage.error('参数格式错误：必须是合法的 JSON 格式')
-            return
+            ElMessage.error('参数格式错误：必须是合法的 JSON 格式');
+            return;
           }
-          this.actionLoading = true
+          this.actionLoading = true;
           try {
-            await triggerBusinessAction(this.actionTemp.id, { action: this.actionTemp.action, params: params })
-            ElMessage.success('业务动作触发成功')
-            this.actionDialogVisible = false
-            this.getList()
-          } catch (error) { console.error(error) } finally { this.actionLoading = false }
+            await triggerBusinessAction(this.actionTemp.id, { action: this.actionTemp.action, params: params });
+            ElMessage.success('业务动作触发成功');
+            this.actionDialogVisible = false;
+            this.getList();
+          } catch (error) { console.error(error); } finally { this.actionLoading = false; }
         }
-      })
+      });
     }
   }
-}
+};
 </script>
 
 <style scoped>

@@ -3,8 +3,8 @@ import { getToken } from '@/utils/auth';
 import { useSpaceStore } from '@/store/modules/space';
 
 // 定义双重 Base URL 以适配混合后端架构
-const LEGACY_BASE_URL = '/api/ai';       // 旧版管理接口地址
-const AGENT_BASE_URL = '/api/v1/agent';  // 新版 Agent 服务地址
+const LEGACY_BASE_URL = '/api/ai'; // 旧版管理接口地址
+const AGENT_BASE_URL = '/api/v1/agent'; // 新版 Agent 服务地址
 
 /**
  * 1. 获取会话列表 (保持原有逻辑)
@@ -92,7 +92,7 @@ export async function fetchChatStream(data, onData, onFinish, onError) {
 
     // 从 data 中解构出 agentId，剩余部分作为 body
     const { agentId, ...bodyData } = data;
-    
+
     // 构造带参数的 URL
     const url = `${AGENT_BASE_URL}/chat?agentId=${agentId || ''}`;
 

@@ -4,20 +4,20 @@
     <el-card class="filter-card" shadow="hover">
       <div class="filter-container">
         <div class="filter-left">
-          <el-input 
-            v-model="listQuery.name" 
-            placeholder="搜索数据源名称" 
-            style="width: 220px;" 
-            class="filter-item" 
+          <el-input
+            v-model="listQuery.name"
+            placeholder="搜索数据源名称"
+            style="width: 220px;"
+            class="filter-item"
             :prefix-icon="Search"
             clearable
-            @keyup.enter="handleFilter" 
+            @keyup.enter="handleFilter"
           />
-          <el-select 
-            v-model="listQuery.type" 
-            placeholder="数据库类型" 
-            clearable 
-            class="filter-item" 
+          <el-select
+            v-model="listQuery.type"
+            placeholder="数据库类型"
+            clearable
+            class="filter-item"
             style="width: 160px"
           >
             <el-option v-for="item in dbTypeOptions" :key="item" :label="item" :value="item" />
@@ -51,7 +51,7 @@
             <span class="id-text">#{{ row.id }}</span>
           </template>
         </el-table-column>
-        
+
         <el-table-column label="名称" prop="name" min-width="160px">
           <template #default="{row}">
             <span class="link-type" @click="handleUpdate(row)">
@@ -91,7 +91,7 @@
             <el-tooltip content="查看Schema/表结构" placement="top">
               <el-button type="warning" size="small" circle :icon="Files" @click="handleOpenStructure(row)" />
             </el-tooltip>
-            
+
             <el-tooltip content="编辑配置" placement="top">
               <el-button type="primary" size="small" circle :icon="Edit" @click="handleUpdate(row)" />
             </el-tooltip>
@@ -124,9 +124,9 @@
     </el-card>
 
     <!-- 4. 创建/编辑 弹窗 -->
-    <el-dialog 
-      v-model="dialogFormVisible" 
-      :title="textMap[dialogStatus]" 
+    <el-dialog
+      v-model="dialogFormVisible"
+      :title="textMap[dialogStatus]"
       width="650px"
       destroy-on-close
       custom-class="datasource-dialog"
@@ -152,7 +152,7 @@
         </el-form-item>
 
         <div class="form-section-title">连接配置</div>
-        
+
         <el-row :gutter="24">
           <el-col :span="16">
             <el-form-item label="主机地址 (Host)" prop="host">
@@ -198,11 +198,11 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogFormVisible = false">取消</el-button>
-          <el-button 
-            type="warning" 
-            plain 
-            :loading="testConnLoading" 
-            :icon="Link" 
+          <el-button
+            type="warning"
+            plain
+            :loading="testConnLoading"
+            :icon="Link"
             @click="handleTestConnectionInDialog"
           >
             测试连接
@@ -238,9 +238,9 @@
       <div class="drawer-body" v-loading="structureLoading">
         <!-- 顶部工具条 -->
         <div class="drawer-toolbar">
-           <el-select 
-            v-model="currentSchema" 
-            placeholder="请选择 Schema" 
+          <el-select
+            v-model="currentSchema"
+            placeholder="请选择 Schema"
             style="width: 200px"
             class="schema-select"
             @change="handleSchemaChange"
@@ -251,9 +251,9 @@
             <el-option v-for="s in schemaList" :key="s" :label="s" :value="s" />
           </el-select>
 
-           <el-button type="success" plain :icon="Document" @click="handleGenerateMetadata">
-             生成全库画像
-           </el-button>
+          <el-button type="success" plain :icon="Document" @click="handleGenerateMetadata">
+            生成全库画像
+          </el-button>
         </div>
 
         <el-divider content-position="left" class="custom-divider">
@@ -263,8 +263,8 @@
 
         <!-- Table 列表 -->
         <div class="table-list-wrapper" v-if="currentSchema">
-          <el-table 
-            :data="tableList" 
+          <el-table
+            :data="tableList"
             v-loading="tableLoading"
             style="width: 100%;"
             height="calc(100vh - 250px)"
@@ -280,11 +280,11 @@
                     <el-icon><Grid /></el-icon> 字段列表 (Columns)
                   </div>
                   <div v-if="row.columns && row.columns.length > 0" class="column-chips">
-                    <el-tag 
-                      v-for="col in row.columns" 
-                      :key="col" 
-                      class="col-tag" 
-                      size="small" 
+                    <el-tag
+                      v-for="col in row.columns"
+                      :key="col"
+                      class="col-tag"
+                      size="small"
                       type="info"
                       effect="plain"
                     >
@@ -300,7 +300,7 @@
 
             <el-table-column label="表名" prop="tableName">
               <template #default="{ row }">
-                 <span class="table-name-text">{{ row.tableName }}</span>
+                <span class="table-name-text">{{ row.tableName }}</span>
               </template>
             </el-table-column>
 
@@ -313,7 +313,7 @@
             </el-table-column>
           </el-table>
         </div>
-        
+
         <el-empty v-else description="请从上方下拉框选择一个 Schema 以开始浏览" :image-size="100" />
       </div>
     </el-drawer>
@@ -333,33 +333,33 @@
             点击绿色字段标签可快速插入变量。
           </template>
         </el-alert>
-        
+
         <div class="field-picker">
           <div class="picker-label">可用字段:</div>
           <div class="field-chips-container" v-if="currentTableColumns.length">
-             <el-tag 
-               v-for="col in currentTableColumns" 
-               :key="col" 
-               class="field-chip cursor-pointer"
-               type="success"
-               effect="light"
-               @click="insertFieldToTemplate(col)"
-             >
-               + {{ col }}
-             </el-tag>
+            <el-tag
+              v-for="col in currentTableColumns"
+              :key="col"
+              class="field-chip cursor-pointer"
+              type="success"
+              effect="light"
+              @click="insertFieldToTemplate(col)"
+            >
+              + {{ col }}
+            </el-tag>
           </div>
           <div v-else class="text-gray">加载字段中...</div>
         </div>
 
         <div class="template-editor">
-           <div class="picker-label">文档模版:</div>
-           <el-input
-             ref="templateInputRef"
-             v-model="streamTemplate"
-             type="textarea"
-             :rows="6"
-             placeholder="例如：\n用户 ${username} (ID: ${id}) 的职业是 ${job_title}，入职时间为 ${hire_date}。"
-           />
+          <div class="picker-label">文档模版:</div>
+          <el-input
+            ref="templateInputRef"
+            v-model="streamTemplate"
+            type="textarea"
+            :rows="6"
+            placeholder="例如：\n用户 ${username} (ID: ${id}) 的职业是 ${job_title}，入职时间为 ${hire_date}。"
+          />
         </div>
       </div>
 
@@ -378,9 +378,9 @@
 
 <script>
 import { ref, reactive, toRefs, computed, nextTick, onMounted } from 'vue';
-import { 
-  Search, Edit, Delete, Link, Files, Document, Cpu, Plus, 
-  DataBoard, Monitor, Coin, DataLine, Grid 
+import {
+  Search, Edit, Delete, Link, Files, Document, Cpu, Plus,
+  DataBoard, Monitor, Coin, DataLine, Grid
 } from '@element-plus/icons-vue';
 import { ElNotification, ElMessage, ElMessageBox, ElLoading } from 'element-plus';
 import {
@@ -399,14 +399,14 @@ import {
 
 export default {
   name: 'DatasourceManagement',
-  components: { 
-    DataBoard, Monitor, Coin, DataLine, Grid, Cpu, Document, Files 
+  components: {
+    DataBoard, Monitor, Coin, DataLine, Grid, Cpu, Document, Files
   },
   setup() {
     const dataForm = ref(null);
     const dbTypeOptions = ['MYSQL', 'POSTGRESQL', 'SQLSERVER', 'SQLITE', 'ORACLE'];
     const textMap = { update: '编辑数据源', create: '新增数据源' };
-    
+
     const state = reactive({
       list: [],
       total: 0,
@@ -415,16 +415,16 @@ export default {
       dialogFormVisible: false,
       dialogStatus: '',
       testConnLoading: false,
-      temp: { 
-        id: undefined, name: '', type: 'MYSQL', description: '', 
-        host: 'localhost', port: 3306, databaseName: '', 
-        username: 'root', password: '', extraProperties: {} 
+      temp: {
+        id: undefined, name: '', type: 'MYSQL', description: '',
+        host: 'localhost', port: 3306, databaseName: '',
+        username: 'root', password: '', extraProperties: {}
       },
-      rules: { 
-        name: [{ required: true, message: '请输入名称', trigger: 'blur' }], 
-        type: [{ required: true, message: '请选择类型', trigger: 'change' }], 
-        host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }], 
-        port: [{ required: true, message: '请输入端口', trigger: 'blur' }] 
+      rules: {
+        name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+        type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+        host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
+        port: [{ required: true, message: '请输入端口', trigger: 'blur' }]
       }
     });
 
@@ -460,12 +460,12 @@ export default {
 
     // --- 辅助方法 ---
     const getTagType = (dbType) => {
-      switch (dbType) { 
-        case 'MYSQL': return ''; 
-        case 'POSTGRESQL': return 'success'; 
-        case 'SQLSERVER': return 'warning'; 
-        case 'ORACLE': return 'danger'; 
-        default: return 'info'; 
+      switch (dbType) {
+        case 'MYSQL': return '';
+        case 'POSTGRESQL': return 'success';
+        case 'SQLSERVER': return 'warning';
+        case 'ORACLE': return 'danger';
+        default: return 'info';
       }
     };
 
@@ -473,35 +473,33 @@ export default {
       state.listLoading = true;
       fetchList(state.listQuery).then(response => {
         const payload = response.data || response;
-        if (Array.isArray(payload)) { state.list = payload; state.total = payload.length; }
-        else if (payload && payload.items) { state.list = payload.items; state.total = payload.total; }
-        else { state.list = []; state.total = 0; }
+        if (Array.isArray(payload)) { state.list = payload; state.total = payload.length; } else if (payload && payload.items) { state.list = payload.items; state.total = payload.total; } else { state.list = []; state.total = 0; }
         state.listLoading = false;
       }).catch(() => { state.list = []; state.total = 0; state.listLoading = false; });
     };
 
     // --- 事件处理 ---
     const handleFilter = () => { state.listQuery.page = 1; getList(); };
-    
-    const resetTemp = () => { 
-      state.temp = { 
-        id: undefined, name: '', type: 'MYSQL', description: '', 
-        host: 'localhost', port: 3306, databaseName: '', 
-        username: 'root', password: '', extraProperties: {} 
-      }; 
+
+    const resetTemp = () => {
+      state.temp = {
+        id: undefined, name: '', type: 'MYSQL', description: '',
+        host: 'localhost', port: 3306, databaseName: '',
+        username: 'root', password: '', extraProperties: {}
+      };
     };
 
-    const handleCreate = () => { 
-      resetTemp(); 
-      state.dialogStatus = 'create'; 
-      state.dialogFormVisible = true; 
-      nextTick(() => dataForm.value?.clearValidate()); 
+    const handleCreate = () => {
+      resetTemp();
+      state.dialogStatus = 'create';
+      state.dialogFormVisible = true;
+      nextTick(() => dataForm.value?.clearValidate());
     };
 
     const createData = () => {
       dataForm.value.validate(valid => {
-        if(valid) {
-          const d = {...state.temp}; delete d.id;
+        if (valid) {
+          const d = { ...state.temp }; delete d.id;
           createDatasource(d).then(res => {
             state.list.unshift(res.data || res);
             state.dialogFormVisible = false;
@@ -520,10 +518,10 @@ export default {
 
     const updateData = () => {
       dataForm.value.validate(valid => {
-        if(valid) {
+        if (valid) {
           updateDatasource(state.temp.id, state.temp).then(res => {
-            const idx = state.list.findIndex(v=>v.id===state.temp.id);
-            if(idx!==-1) state.list.splice(idx,1,res.data||state.temp);
+            const idx = state.list.findIndex(v => v.id === state.temp.id);
+            if (idx !== -1) state.list.splice(idx, 1, res.data || state.temp);
             state.dialogFormVisible = false;
             ElMessage.success('更新成功');
           });
@@ -550,9 +548,9 @@ export default {
       const loading = ElLoading.service({
         lock: true,
         text: `正在测试连接 [${row.name}] ...`,
-        background: 'rgba(0, 0, 0, 0.6)',
+        background: 'rgba(0, 0, 0, 0.6)'
       });
-      
+
       testConnectionById(row.id).then(() => {
         loading.close();
         // 成功提示：使用 ElMessage.success 确保可见
@@ -609,7 +607,7 @@ export default {
       structureState.currentSchema = '';
       structureState.schemaList = [];
       structureState.tableList = [];
-      
+
       structureState.structureLoading = true;
       getSchemas(row.id).then(res => {
         structureState.schemaList = res.data || res || [];
@@ -624,7 +622,7 @@ export default {
       if (!val) return;
       structureState.tableLoading = true;
       structureState.tableList = [];
-      
+
       getTables(structureState.currentDatasource.id, val).then(res => {
         const tables = res.data || res || [];
         structureState.tableList = tables.map(t => ({
@@ -675,15 +673,15 @@ export default {
       structureState.currentTableColumns = row.columns || [];
       structureState.streamTemplate = '';
       structureState.streamDialogVisible = true;
-      
+
       // 自动补全列信息
       if (structureState.currentTableColumns.length === 0) {
-         getColumns(structureState.currentDatasource.id, structureState.currentSchema, row.tableName)
-           .then(res => {
-             const cols = res.data || res || [];
-             structureState.currentTableColumns = cols;
-             row.columns = cols;
-           });
+        getColumns(structureState.currentDatasource.id, structureState.currentSchema, row.tableName)
+          .then(res => {
+            const cols = res.data || res || [];
+            structureState.currentTableColumns = cols;
+            row.columns = cols;
+          });
       }
     };
 
@@ -698,9 +696,9 @@ export default {
       }
       structureState.streamSubmitting = true;
       streamTable(
-        structureState.currentDatasource.id, 
-        structureState.currentSchema, 
-        structureState.currentStreamTable, 
+        structureState.currentDatasource.id,
+        structureState.currentSchema,
+        structureState.currentStreamTable,
         structureState.streamTemplate
       ).then(() => {
         structureState.streamSubmitting = false;

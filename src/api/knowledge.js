@@ -1,7 +1,7 @@
-import request from '@/utils/request'
+import request from '@/utils/request';
 
 // 基础路径，根据您的Controller定义
-const BASE_URL = '/api/documents'
+const BASE_URL = '/api/documents';
 
 /**
  * 获取所有文档列表
@@ -10,7 +10,7 @@ export function fetchDocumentList() {
   return request({
     url: `${BASE_URL}/list`,
     method: 'get'
-  })
+  });
 }
 
 /**
@@ -22,7 +22,7 @@ export function searchDocuments(data) {
     url: `${BASE_URL}/search`,
     method: 'post',
     data
-  })
+  });
 }
 
 /**
@@ -33,7 +33,7 @@ export function fetchDocumentChunks(sourceId) {
   return request({
     url: `${BASE_URL}/${sourceId}`,
     method: 'get'
-  })
+  });
 }
 
 /**
@@ -46,7 +46,7 @@ export function updateChunk(chunkId, content) {
     url: `${BASE_URL}/chunks/${chunkId}`,
     method: 'put',
     data: { content }
-  })
+  });
 }
 
 /**
@@ -57,5 +57,5 @@ export function deleteDocument(sourceId) {
   return request({
     url: `${BASE_URL}/${sourceId}`,
     method: 'delete'
-  })
+  });
 }

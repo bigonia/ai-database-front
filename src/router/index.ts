@@ -62,6 +62,58 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: 'Profile', icon: 'user', noCache: true }
       }
     ]
+  },
+  {
+    path: '/sdui',
+    component: Layout,
+    redirect: '/sdui/terminal',
+    name: 'Sdui',
+    meta: {
+      title: 'SDUI Console',
+      icon: 'component',
+      roles: ['admin', 'editor', 'guest', 'sdui_only']
+    },
+    children: [
+      {
+        path: 'terminal',
+        name: 'SduiTerminal',
+        component: () => import('@/views/sdui/terminal/TerminalList.vue'),
+        meta: { title: '终端管理', icon: 'monitor', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'terminal/:deviceId',
+        name: 'SduiTerminalDetail',
+        component: () => import('@/views/sdui/terminal/TerminalDetail.vue'),
+        meta: { title: '终端详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'devices',
+        redirect: '/sdui/terminal',
+        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'debug',
+        name: 'SduiDebug',
+        component: () => import('@/views/sdui/debug.vue'),
+        meta: { title: '调试台', icon: 'tools', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'catalog',
+        name: 'SduiCatalog',
+        component: () => import('@/views/sdui/catalog.vue'),
+        meta: { title: '能力目录', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'overview',
+        redirect: '/sdui/terminal',
+        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'management',
+        redirect: '/sdui/catalog',
+        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      }
+    ]
   }
 ];
 
@@ -120,43 +172,6 @@ export const asyncRoutes: RouteRecordRaw[] = [
     ]
   },
   {
-    path: '/sdui',
-    component: Layout,
-    redirect: '/sdui/overview',
-    name: 'Sdui',
-    meta: {
-      title: 'SDUI Console',
-      icon: 'component',
-      roles: ['admin', 'editor', 'guest', 'sdui_only']
-    },
-    children: [
-      {
-        path: 'overview',
-        name: 'SduiOverview',
-        component: () => import('@/views/sdui/overview.vue'),
-        meta: { title: 'Overview', icon: 'dashboard', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'devices',
-        name: 'SduiDevices',
-        component: () => import('@/views/sdui/devices.vue'),
-        meta: { title: 'Devices', icon: 'device', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'workflows',
-        name: 'SduiWorkflows',
-        component: () => import('@/views/sdui/workflows.vue'),
-        meta: { title: 'Workflows', icon: 'list', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'editor/:id?',
-        name: 'SduiEditor',
-        component: () => import('@/views/sdui/editor.vue'),
-        meta: { title: 'Editor', icon: 'list', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      }
-    ]
-  },
-  {
     path: '/file-ops',
     component: Layout,
     redirect: '/file-ops/manager',
@@ -209,7 +224,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
       }
     ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true } }
+  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true }}
 ];
 
 const createTheRouter = (): Router =>

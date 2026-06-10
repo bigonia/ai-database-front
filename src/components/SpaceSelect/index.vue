@@ -23,9 +23,9 @@
               </div>
             </el-dropdown-item>
           </el-scrollbar>
-          
+
           <el-divider style="margin: 5px 0;" />
-          
+
           <el-dropdown-item command="manage" class="manage-action">
             <el-icon><Setting /></el-icon>
             <span>管理空间</span>
@@ -53,10 +53,10 @@
         <el-button type="primary" icon="Plus" @click="showCreateForm = true">新建空间</el-button>
       </div>
 
-      <el-table 
-        :data="filteredSpaces" 
-        style="width: 100%;" 
-        border 
+      <el-table
+        :data="filteredSpaces"
+        style="width: 100%;"
+        border
         stripe
         header-cell-class-name="table-header-gray"
       >
@@ -71,10 +71,10 @@
         <el-table-column prop="description" label="描述" show-overflow-tooltip />
         <el-table-column label="操作" width="100" align="center">
           <template #default="scope">
-            <el-button 
-              type="danger" 
-              link 
-              icon="Delete" 
+            <el-button
+              type="danger"
+              link
+              icon="Delete"
               :disabled="scope.row.id === spaceStore.currentSpaceId"
               @click="handleDelete(scope.row)"
             >
@@ -96,11 +96,11 @@
             <el-input v-model="form.name" placeholder="请输入空间名称（如：研发中心）" />
           </el-form-item>
           <el-form-item label="描述" prop="description">
-            <el-input 
-              v-model="form.description" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="请输入描述信息" 
+            <el-input
+              v-model="form.description"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入描述信息"
             />
           </el-form-item>
         </el-form>
@@ -116,94 +116,94 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
-import { useSpaceStore } from '@/store/modules/space'
-import { createSpace, deleteSpace } from '@/api/space'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  OfficeBuilding, 
-  CaretBottom, 
-  Setting, 
-  Delete, 
-  Plus, 
+import { ref, computed, onMounted, reactive } from 'vue';
+import { useSpaceStore } from '@/store/modules/space';
+import { createSpace, deleteSpace } from '@/api/space';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  OfficeBuilding,
+  CaretBottom,
+  Setting,
+  Delete,
+  Plus,
   Search,
   Check
-} from '@element-plus/icons-vue'
+} from '@element-plus/icons-vue';
 
-const spaceStore = useSpaceStore()
-const dialogVisible = ref(false)
-const showCreateForm = ref(false)
-const loading = ref(false)
-const searchKeyword = ref('')
-const formRef = ref()
+const spaceStore = useSpaceStore();
+const dialogVisible = ref(false);
+const showCreateForm = ref(false);
+const loading = ref(false);
+const searchKeyword = ref('');
+const formRef = ref();
 
 const form = reactive({
   name: '',
   description: ''
-})
+});
 
 const rules = {
   name: [{ required: true, message: '请输入空间名称', trigger: 'blur' }]
-}
+};
 
 const currentSpaceName = computed(() => {
-  return spaceStore.currentSpace?.name || '选择空间'
-})
+  return spaceStore.currentSpace?.name || '选择空间';
+});
 
 // 过滤后的空间列表（用于搜索）
 const filteredSpaces = computed(() => {
-  if (!searchKeyword.value) return spaceStore.spaces
-  return spaceStore.spaces.filter((s: any) => 
+  if (!searchKeyword.value) return spaceStore.spaces;
+  return spaceStore.spaces.filter((s: any) =>
     s.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-  )
-})
+  );
+});
 
 onMounted(() => {
-  spaceStore.loadSpaces()
-})
+  spaceStore.loadSpaces();
+});
 
 const handleCommand = (command: string) => {
   if (command === 'manage') {
-    dialogVisible.value = true
-    searchKeyword.value = '' // 打开时重置搜索
+    dialogVisible.value = true;
+    searchKeyword.value = ''; // 打开时重置搜索
   } else {
-    handleSwitch(command)
+    handleSwitch(command);
   }
-}
+};
 
 const handleSwitch = (id: string) => {
-  if (id === spaceStore.currentSpaceId) return
-  
+  if (id === spaceStore.currentSpaceId) return;
+
   ElMessageBox.confirm('切换业务空间将重新加载页面，是否继续？', '切换确认', {
     confirmButtonText: '立即切换',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    spaceStore.setSpace(id)
-    window.location.reload()
-  })
-}
+    spaceStore.setSpace(id);
+    window.location.reload();
+  });
+};
 
 const submitCreate = async () => {
-  if (!formRef.value) return
+  if (!formRef.value) return;
   await formRef.value.validate(async (valid: boolean) => {
     if (valid) {
-      loading.value = true
+      loading.value = true;
       try {
-        await createSpace(form)
-        ElMessage.success('创建成功')
-        showCreateForm.value = false
-        form.name = ''
-        form.description = ''
-        await spaceStore.loadSpaces()
+        await createSpace(form);
+        ElMessage.success('创建成功');
+        showCreateForm.value = false;
+        form.name = '';
+        form.description = '';
+        await spaceStore.loadSpaces();
       } catch (e) {
-        console.error(e)
+        console.error(e);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     }
-  })
-}
+  });
+};
 
 const handleDelete = (row: any) => {
   ElMessageBox.confirm(`确定要删除空间 "${row.name}" 吗？此操作不可恢复。`, '删除警告', {
@@ -212,14 +212,14 @@ const handleDelete = (row: any) => {
     type: 'error'
   }).then(async () => {
     try {
-      await deleteSpace(row.id)
-      ElMessage.success('删除成功')
-      await spaceStore.loadSpaces()
+      await deleteSpace(row.id);
+      ElMessage.success('删除成功');
+      await spaceStore.loadSpaces();
     } catch (e) {
-      console.error(e)
+      console.error(e);
     }
-  })
-}
+  });
+};
 </script>
 
 <style scoped lang="scss">
@@ -227,7 +227,7 @@ const handleDelete = (row: any) => {
   height: 100%;
   display: flex;
   align-items: center;
-  
+
   /* 修复 el-dropdown 在 flex 容器中的对齐问题 */
   :deep(.el-dropdown) {
     height: 100%;
@@ -243,7 +243,7 @@ const handleDelete = (row: any) => {
   cursor: pointer;
   height: 100%;
   transition: all 0.3s;
-  
+
   &:hover {
     opacity: 0.8;
   }
@@ -285,13 +285,13 @@ const handleDelete = (row: any) => {
   align-items: center;
   width: 100%;
   min-width: 150px;
-  
+
   .item-text {
     flex: 1;
     margin-right: 10px;
     font-weight: 500;
   }
-  
+
   .check-icon {
     color: #409EFF;
     font-weight: bold;
@@ -306,7 +306,7 @@ const handleDelete = (row: any) => {
 .manage-action {
   color: #606266;
   font-weight: 500;
-  
+
   &:hover {
     color: #409EFF;
     background-color: #f5f7fa;

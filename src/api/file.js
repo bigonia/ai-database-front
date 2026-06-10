@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import request from '@/utils/request';
 
 /**
  * 获取文件列表
@@ -9,13 +9,13 @@ export function getFileList(query) {
     url: '/api/files',
     method: 'get',
     params: query
-  })
+  });
 }
 
 /**
  * 上传文件
- * @param {FormData} data 
- * @param {string} sourceSystem 
+ * @param {FormData} data
+ * @param {string} sourceSystem
  */
 export function uploadFile(data, sourceSystem) {
   return request({
@@ -26,7 +26,7 @@ export function uploadFile(data, sourceSystem) {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
-  })
+  });
 }
 
 /**
@@ -37,7 +37,7 @@ export function deleteFile(id) {
   return request({
     url: `/api/files/${id}`,
     method: 'delete'
-  })
+  });
 }
 
 /**
@@ -48,7 +48,7 @@ export function vectorizeFile(id) {
   return request({
     url: `/api/files/${id}/vectorize`,
     method: 'post'
-  })
+  });
 }
 
 /**
@@ -59,7 +59,7 @@ export function deleteFileVectors(id) {
   return request({
     url: `/api/files/${id}/vectors`,
     method: 'delete'
-  })
+  });
 }
 
 /**
@@ -70,7 +70,7 @@ export function fileToDoc(id) {
   return request({
     url: `/api/files/${id}/toDoc`,
     method: 'post'
-  })
+  });
 }
 
 /**
@@ -84,5 +84,5 @@ export function getFileContent(id) {
     method: 'get',
     responseType: 'blob', // 关键：指定响应类型为 blob
     timeout: 60000 // 预览大文件可能需要较长时间
-  })
+  });
 }

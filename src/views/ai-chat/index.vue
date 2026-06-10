@@ -5,9 +5,9 @@
       <div class="sidebar-header-wrapper">
         <!-- Agent 选择器 -->
         <div class="agent-selector-area">
-          <el-select 
-            v-model="currentAgentId" 
-            placeholder="选择 Agent" 
+          <el-select
+            v-model="currentAgentId"
+            placeholder="选择 Agent"
             class="agent-select"
             size="default"
             :disabled="isStreamLoading"
@@ -45,7 +45,7 @@
             </div>
             <!-- 更多操作按钮 -->
             <div class="chat-options">
-               <el-dropdown @command="handleChatCommand" trigger="click">
+              <el-dropdown @command="handleChatCommand" trigger="click">
                 <el-icon class="option-icon" @click.stop><MoreFilled /></el-icon>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -57,7 +57,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 列表为空时的展示 -->
         <div v-if="!isListLoading && chatHistory.length === 0" class="empty-history">
           <el-empty description="暂无历史对话" :image-size="60"></el-empty>
@@ -72,18 +72,18 @@
         <div class="header-left">
           <el-button link :icon="sidebarVisible ? Fold : Expand" @click="toggleSidebar" class="toggle-btn" />
           <div class="header-info">
-             <h3>{{ currentChatTitle || '新对话' }}</h3>
-             <el-tag v-if="currentAgentId" size="small" type="success" effect="plain" class="header-agent-tag">
-               {{ getCurrentAgentName() }}
-             </el-tag>
+            <h3>{{ currentChatTitle || '新对话' }}</h3>
+            <el-tag v-if="currentAgentId" size="small" type="success" effect="plain" class="header-agent-tag">
+              {{ getCurrentAgentName() }}
+            </el-tag>
           </div>
         </div>
       </div>
 
       <!-- 消息展示区域 -->
-      <div 
-        ref="messageContainer" 
-        class="message-container" 
+      <div
+        ref="messageContainer"
+        class="message-container"
         v-loading="isMessageLoading"
         @scroll="handleScroll"
       >
@@ -100,10 +100,10 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 消息列表 -->
         <div v-else class="chat-list">
-           <div v-for="(message, index) in currentMessages" :key="index" :class="['message-row', message.sender]">
+          <div v-for="(message, index) in currentMessages" :key="index" :class="['message-row', message.sender]">
             <!-- 头像 -->
             <div class="avatar-wrapper">
               <div v-if="message.sender === 'user'" class="avatar user-avatar">
@@ -116,52 +116,52 @@
 
             <!-- 消息内容 -->
             <div class="message-content-wrapper">
-              
+
               <!-- 消息气泡 -->
               <div class="message-bubble">
-                <!-- 
-                  核心变更：使用 segments 数组遍历渲染，实现文本与工具的时序穿插 
+                <!--
+                  核心变更：使用 segments 数组遍历渲染，实现文本与工具的时序穿插
                 -->
                 <template v-for="(segment, segIndex) in message.segments" :key="segIndex">
-                  
+
                   <!-- 类型A: 工具调用片段 -->
                   <div v-if="segment.type === 'tool'" class="tool-accordion-wrapper">
                     <div class="tool-accordion">
-                       <div class="tool-header" @click.stop="toggleTool(segment)">
-                         <div class="tool-header-left">
-                           <el-icon class="tool-icon"><Tools /></el-icon>
-                           <span class="tool-name">已调用工具: {{ segment.data.toolName }}</span>
-                           <el-tag size="small" type="info" class="tool-cost">{{ segment.data.toolCost }}ms</el-tag>
-                         </div>
-                         <el-icon class="arrow-icon" :class="{ 'is-active': segment.isExpanded }"><ArrowDown /></el-icon>
-                       </div>
-                       <div v-show="segment.isExpanded" class="tool-body">
-                         <div class="tool-result-label">执行结果:</div>
-                         <div class="tool-result-content">{{ segment.data.toolResult }}</div>
-                       </div>
+                      <div class="tool-header" @click.stop="toggleTool(segment)">
+                        <div class="tool-header-left">
+                          <el-icon class="tool-icon"><Tools /></el-icon>
+                          <span class="tool-name">已调用工具: {{ segment.data.toolName }}</span>
+                          <el-tag size="small" type="info" class="tool-cost">{{ segment.data.toolCost }}ms</el-tag>
+                        </div>
+                        <el-icon class="arrow-icon" :class="{ 'is-active': segment.isExpanded }"><ArrowDown /></el-icon>
+                      </div>
+                      <div v-show="segment.isExpanded" class="tool-body">
+                        <div class="tool-result-label">执行结果:</div>
+                        <div class="tool-result-content">{{ segment.data.toolResult }}</div>
+                      </div>
                     </div>
                   </div>
 
                   <!-- 类型B: 文本片段 -->
-                  <div 
-                    v-else-if="segment.type === 'text'" 
-                    class="markdown-body" 
+                  <div
+                    v-else-if="segment.type === 'text'"
+                    class="markdown-body"
                     v-html="renderMarkdown(segment.content)"
                   ></div>
 
                 </template>
-                
+
                 <!-- 兼容旧数据或纯文本展示 (如果 segments 为空) -->
                 <div v-if="!message.segments || message.segments.length === 0">
-                   <div v-if="message.sender === 'ai'" class="markdown-body" v-html="renderMarkdown(message.text)" />
-                   <div v-else class="user-text">{{ message.text }}</div>
+                  <div v-if="message.sender === 'ai'" class="markdown-body" v-html="renderMarkdown(message.text)" />
+                  <div v-else class="user-text">{{ message.text }}</div>
                 </div>
 
               </div>
 
               <!-- AI消息的底部功能区 -->
               <div v-if="message.sender === 'ai'" class="ai-message-extras">
-                
+
                 <!-- 引用文档展示 -->
                 <div v-if="message.context && message.context.length > 0" class="reference-accordion">
                   <div class="reference-header" @click="toggleReference(index)">
@@ -171,7 +171,7 @@
                     </div>
                     <el-icon class="arrow-icon" :class="{ 'is-active': message.isRefExpanded }"><ArrowDown /></el-icon>
                   </div>
-                  
+
                   <div v-show="message.isRefExpanded" class="reference-body">
                     <div v-for="(doc, docIndex) in message.context" :key="docIndex" class="reference-item">
                       <div class="ref-item-header">
@@ -221,7 +221,7 @@
             @keydown.enter.shift.exact.prevent="userInput += '\n'"
           />
           <div class="send-btn-wrapper">
-             <el-button
+            <el-button
               type="primary"
               :icon="Promotion"
               circle
@@ -240,10 +240,10 @@
 </template>
 
 <script>
-import { 
-  fetchChatStream, 
-  getUserConversations, 
-  createConversation, 
+import {
+  fetchChatStream,
+  getUserConversations,
+  createConversation,
   getConversationMessages,
   deleteConversation,
   renameConversation
@@ -252,7 +252,7 @@ import { getAgentList } from '@/api/agent';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
-  Promotion, UserFilled, Plus, Expand, Fold, MoreFilled, 
+  Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
   ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
 } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
@@ -260,12 +260,12 @@ import { ElMessageBox, ElMessage } from 'element-plus';
 export default {
   name: 'AiChat',
   components: {
-    Promotion, UserFilled, Plus, Expand, Fold, MoreFilled, 
+    Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
     ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
   },
   setup() {
     return {
-      Promotion, UserFilled, Plus, Expand, Fold, MoreFilled, 
+      Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
       ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
     };
   },
@@ -276,7 +276,7 @@ export default {
       isStreamLoading: false,
       isListLoading: false,
       isMessageLoading: false,
-      
+
       agentList: [],
       currentAgentId: '',
       isAgentReady: false,
@@ -285,9 +285,9 @@ export default {
       currentChatTitle: '',
       chatHistory: [],
       currentMessages: [],
-      
+
       // 滚动控制
-      autoScrollEnabled: true, // 是否开启自动滚动
+      autoScrollEnabled: true // 是否开启自动滚动
     };
   },
   watch: {
@@ -342,7 +342,7 @@ export default {
       if (msg) msg.isRefExpanded = !msg.isRefExpanded;
       // 点击展开引用不触发 scrollToBottom，保持当前阅读位置
     },
-    
+
     toggleTool(segment) {
       // 仅切换状态，不强制滚动
       segment.isExpanded = !segment.isExpanded;
@@ -359,14 +359,14 @@ export default {
         const res = await getUserConversations();
         const list = Array.isArray(res) ? res : (res.data || (res.list ? res.list : []));
         this.chatHistory = list || [];
-        
+
         if (this.chatHistory.length > 0) {
           this.switchChat(this.chatHistory[0].id);
         } else {
           this.handleCreateChat();
         }
       } catch (error) {
-        this.chatHistory = []; 
+        this.chatHistory = [];
       } finally {
         this.isListLoading = false;
       }
@@ -382,25 +382,25 @@ export default {
 
     async switchChat(chatId) {
       if (this.currentChatId === chatId) return;
-      
+
       this.currentChatId = chatId;
       this.userInput = '';
       this.isMessageLoading = true;
-      
+
       const chat = this.chatHistory.find(c => c.id === chatId);
       this.currentChatTitle = chat ? chat.title : '新对话';
 
       try {
         const res = await getConversationMessages(chatId);
         const backendMessages = Array.isArray(res) ? res : (res.data || []);
-        
+
         this.currentMessages = backendMessages.map(msg => {
           const isUser = msg.role === 'user' || msg.sender === 'user' || msg.messageType === 'USER';
-          
+
           // --- 历史数据适配 ---
           // 将历史数据转换为 segments 结构以便统一渲染
           const segments = [];
-          
+
           // 1. 如果有工具调用，先放入 (因为历史记录通常不保存详细时序，此处采用默认顺序：工具在上，文本在下)
           // 如果想更精确，需要后端支持按时序返回 mixed list
           if (msg.tools && msg.tools.length > 0) {
@@ -412,7 +412,7 @@ export default {
               });
             });
           }
-          
+
           // 2. 文本内容
           const textContent = msg.content || msg.text || '';
           if (textContent) {
@@ -433,11 +433,10 @@ export default {
             timestamp: (msg.createTime || msg.timestamp) ? new Date(msg.createTime || msg.timestamp) : new Date()
           };
         });
-        
+
         // 切换会话后，强制滚到底部并开启自动滚动
         this.autoScrollEnabled = true;
         this.scrollToBottom();
-        
       } catch (error) {
         console.error('加载消息失败', error);
         this.currentMessages = [];
@@ -512,7 +511,7 @@ export default {
           this.currentChatTitle = newChat.title;
           this.chatHistory.unshift(newChat);
         } catch (e) {
-          ElMessage.error("创建会话失败");
+          ElMessage.error('创建会话失败');
           this.isStreamLoading = false;
           return;
         }
@@ -525,7 +524,7 @@ export default {
         timestamp: new Date()
       });
       this.userInput = '';
-      
+
       // 2. 预置 AI 消息 (使用 segments)
       const aiMessage = {
         sender: 'ai',
@@ -535,60 +534,60 @@ export default {
         timestamp: new Date()
       };
       this.currentMessages.push(aiMessage);
-      
+
       // 强制滚动一次以显示新消息
       this.scrollToBottom();
-      
+
       const aiMessageIndex = this.currentMessages.length - 1;
 
       // 3. 流式请求
       try {
         await fetchChatStream(
-          { 
-            query: query, 
+          {
+            query: query,
             sessionId: this.currentChatId,
-            agentId: this.currentAgentId 
+            agentId: this.currentAgentId
           },
           (streamData) => {
             const { type, data } = streamData;
             const currentMsg = this.currentMessages[aiMessageIndex];
-            
+
             // --- 文本事件 ---
             if (type === 'TEXT') {
-               // 检查最后一个片段是否为文本
-               const lastSegment = currentMsg.segments[currentMsg.segments.length - 1];
-               if (lastSegment && lastSegment.type === 'text') {
-                 // 追加到现有文本片段
-                 lastSegment.content += data;
-               } else {
-                 // 新起一个文本片段
-                 currentMsg.segments.push({ type: 'text', content: data });
-               }
-            } 
+              // 检查最后一个片段是否为文本
+              const lastSegment = currentMsg.segments[currentMsg.segments.length - 1];
+              if (lastSegment && lastSegment.type === 'text') {
+                // 追加到现有文本片段
+                lastSegment.content += data;
+              } else {
+                // 新起一个文本片段
+                currentMsg.segments.push({ type: 'text', content: data });
+              }
+            }
             // --- 引用文档 ---
             else if (type === 'CONTEXT') {
-               currentMsg.context = data;
+              currentMsg.context = data;
             }
             // --- 工具执行 (按时序嵌入) ---
             else if (type === 'TOOL_EXECUTION') {
-               // 直接 push 一个新的工具片段
-               currentMsg.segments.push({
-                 type: 'tool',
-                 data: data,
-                 isExpanded: false // 默认收起
-               });
+              // 直接 push 一个新的工具片段
+              currentMsg.segments.push({
+                type: 'tool',
+                data: data,
+                isExpanded: false // 默认收起
+              });
             }
           },
           () => {
             this.isStreamLoading = false;
             const chat = this.chatHistory.find(c => c.id === this.currentChatId);
-            if(chat) chat.updatedAt = new Date();
+            if (chat) chat.updatedAt = new Date();
           },
           (error) => {
             this.isStreamLoading = false;
             const currentMsg = this.currentMessages[aiMessageIndex];
             if (currentMsg.segments.length === 0) {
-               currentMsg.segments.push({ type: 'text', content: '网络连接异常，请重试。' });
+              currentMsg.segments.push({ type: 'text', content: '网络连接异常，请重试。' });
             }
             console.error(error);
           }
@@ -603,7 +602,7 @@ export default {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return '刚刚';
       const now = new Date();
-      return (now - date < 86400000 && now.getDate() === date.getDate()) 
+      return (now - date < 86400000 && now.getDate() === date.getDate())
         ? `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
         : `${date.getMonth() + 1}月${date.getDate()}日`;
     },
@@ -622,7 +621,7 @@ export default {
     copyText(text) {
       navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'));
     },
-    
+
     copyFullText(message) {
       // 聚合所有文本片段
       const fullText = message.segments
@@ -647,7 +646,7 @@ export default {
     scrollToBottom() {
       // 只有在 autoScrollEnabled 为 true 时才执行 DOM 操作
       if (!this.autoScrollEnabled) return;
-      
+
       const container = this.$refs.messageContainer;
       if (container) {
         container.scrollTop = container.scrollHeight;
@@ -755,7 +754,7 @@ export default {
   border-top: 1px dashed #e6a23c; background-color: #fff; padding: 8px 10px; font-size: 12px; color: #333;
 }
 .tool-result-label { font-weight: bold; margin-bottom: 4px; color: #666; }
-.tool-result-content { 
+.tool-result-content {
   white-space: pre-wrap; font-family: monospace; background: #fafafa; padding: 4px; border-radius: 4px;
 }
 

@@ -55,18 +55,18 @@ service.interceptors.response.use(
     // 检查：如果 API 直接返回了一个数组
     // if (Array.isArray(response.data) || res.code == null) {
     //   return {
-    //     code: 20000, 
+    //     code: 20000,
     //     data: response.data // 修改：这里不需要再包一层 data.items，除非你的UI组件强制要求
     //     // 如果后端返回的就是 List<BusinessSpace>，那么 res 就是数组
     //   };
     // }
     // 如果是下载文件，直接返回完整的 response 对象（包含 headers, data 等）
     if (
-      response.config.responseType === 'blob' || 
+      response.config.responseType === 'blob' ||
       response.headers['content-type']?.includes('application/octet-stream') ||
       response.headers['content-type']?.includes('application/vnd.openxmlformats')
     ) {
-      return response
+      return response;
     }
 
     // if the custom code is not 20000, it is judged as an error.

@@ -1,222 +1,296 @@
 <template>
-  <div class="app-container sdui-devices">
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
-      <!-- Tab: Claimed Devices -->
-      <el-tab-pane label="已认领设备" name="claimed">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>已认领设备</span>
-              <div class="header-actions">
-                <span class="stat online">在线 {{ claimedOnlineCount }}</span>
-                <span class="stat offline">离线 {{ claimedOfflineCount }}</span>
-                <el-button plain @click="fetchClaimedDevices">刷新</el-button>
-              </div>
-            </div>
-          </template>
+  <div class="app-container sdui-devices-page">
+    <section class="hero">
+      <div>
+        <span class="hero-kicker">Device Console</span>
+        <h1>终端列表</h1>
+        <p>保留原本的卡片缩略信息展示和点击后的详情查看，同时把设备能力信息纳入详情面板。</p>
+      </div>
+      <div class="hero-actions">
+        <el-button plain :loading="loading.deviceTypes" @click="fetchDeviceTypes">刷新机型</el-button>
+        <el-button type="primary" :loading="loading.claimed || loading.unclaimed" @click="refreshAll">刷新列表</el-button>
+      </div>
+    </section>
 
-          <el-table v-loading="loading.claimed" :data="claimedDevices" @row-click="openDetail">
-            <el-table-column prop="deviceId" label="Device ID" min-width="170" show-overflow-tooltip />
-            <el-table-column prop="name" label="名称" min-width="140" />
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 'ONLINE' ? 'success' : 'info'" effect="plain">
-                  {{ row.status || 'UNKNOWN' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="currentPageId" label="当前页面" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="lastSeenAt" label="最近在线" min-width="170" />
-            <el-table-column prop="claimedAt" label="认领时间" min-width="170" />
-            <el-table-column label="操作" width="100" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click.stop="openDetail(row)">详情</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="已认领设备" name="claimed">
+        <section class="summary-bar">
+          <span>总计 <strong>{{ pagination.total }}</strong></span>
+          <span class="online">在线 <strong>{{ summary.online }}</strong></span>
+          <span class="offline">离线 <strong>{{ summary.offline }}</strong></span>
+          <span>机型 <strong>{{ deviceTypes.length }}</strong></span>
+        </section>
+
+        <section class="filter-bar">
+          <el-select v-model="filters.status" clearable placeholder="在线状态" style="width: 140px" @change="resetAndFetch">
+            <el-option label="在线" value="ONLINE" />
+            <el-option label="离线" value="OFFLINE" />
+          </el-select>
+          <el-select v-model="filters.board" clearable filterable placeholder="硬件型号" style="width: 180px" @change="resetAndFetch">
+            <el-option
+              v-for="item in deviceTypes"
+              :key="item.key || item.board"
+              :label="`${item.label || item.board || item.key} (${item.deviceCount || 0})`"
+              :value="item.board || item.key"
+            />
+          </el-select>
+          <el-input v-model="filters.search" clearable placeholder="搜索设备名称或 ID" style="width: 240px" @clear="resetAndFetch" @keyup.enter="resetAndFetch" />
+          <el-select v-model="filters.sortBy" style="width: 150px" @change="fetchClaimedDevices">
+            <el-option label="最近在线" value="lastSeenAt" />
+            <el-option label="名称" value="name" />
+            <el-option label="状态" value="status" />
+          </el-select>
+          <el-radio-group v-model="filters.sortDir" @change="fetchClaimedDevices">
+            <el-radio-button label="DESC" value="DESC">降序</el-radio-button>
+            <el-radio-button label="ASC" value="ASC">升序</el-radio-button>
+          </el-radio-group>
+        </section>
+
+        <el-card shadow="never" v-loading="loading.claimed" class="list-shell">
+          <el-row v-if="claimedDevices.length" :gutter="16" class="device-grid">
+            <el-col v-for="device in claimedDevices" :key="device.deviceId" :xs="24" :sm="12" :xl="8">
+              <div class="device-card" @click="openDetail(device)">
+                <div class="device-card-top">
+                  <div>
+                    <div class="device-name">{{ device.name || device.deviceName || device.deviceId }}</div>
+                    <div class="device-id">{{ device.deviceId }}</div>
+                  </div>
+                  <el-tag :type="device.status === 'ONLINE' ? 'success' : 'info'" effect="dark" round>
+                    {{ device.status === 'ONLINE' ? '在线' : '离线' }}
+                  </el-tag>
+                </div>
+
+                <div class="device-preview" :class="device.status === 'ONLINE' ? 'online' : 'offline'">
+                  <div class="preview-shell">
+                    <div class="preview-screen">
+                      <div class="screen-line wide" />
+                      <div class="screen-line" />
+                      <div class="screen-line short" />
+                      <div class="screen-bars">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    </div>
+                    <div class="preview-buttons">
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                  <div class="preview-meta">
+                    <span>{{ formatBoard(device.board) }}</span>
+                    <span>{{ device.inputMode || 'input' }}</span>
+                  </div>
+                </div>
+
+                <div class="stats-row">
+                  <div class="mini-stat">
+                    <span>电量</span>
+                    <strong>{{ batteryLabel(device) }}</strong>
+                  </div>
+                  <div class="mini-stat">
+                    <span>WiFi</span>
+                    <strong>{{ wifiLabel(device) }}</strong>
+                  </div>
+                  <div class="mini-stat">
+                    <span>温度</span>
+                    <strong>{{ tempLabel(device) }}</strong>
+                  </div>
+                </div>
+
+                <div class="pill-row">
+                  <span class="meta-pill">{{ device.registrationStatus || '-' }}</span>
+                  <span class="meta-pill">{{ device.sizeClass || 'unknown' }}</span>
+                  <span class="meta-pill">{{ device.currentAppId || '未绑定应用' }}</span>
+                </div>
+
+                <div class="device-card-bottom">
+                  <div class="last-seen">
+                    <span>上次在线</span>
+                    <strong>{{ formatTime(device.lastSeenAt) }}</strong>
+                  </div>
+                  <div class="card-actions">
+                    <el-button link type="primary" @click.stop="openDetail(device)">详情</el-button>
+                    <el-button link type="danger" @click.stop="handleDelete(device)">删除</el-button>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <el-empty v-else description="没有符合筛选条件的终端" :image-size="80" />
+
+          <Pagination
+            v-if="pagination.total > 0"
+            :total="pagination.total"
+            :page="pagination.page"
+            :limit="pagination.size"
+            @pagination="handlePagination"
+          />
         </el-card>
       </el-tab-pane>
 
-      <!-- Tab: Unclaimed Devices -->
       <el-tab-pane label="未认领设备" name="unclaimed">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>未认领设备</span>
-              <el-button plain @click="fetchUnclaimedDevices">刷新</el-button>
-            </div>
-          </template>
+        <section class="summary-bar">
+          <span>待认领 <strong>{{ unclaimedDevices.length }}</strong></span>
+          <span class="online">在线 <strong>{{ unclaimedOnline }}</strong></span>
+          <span class="offline">离线 <strong>{{ unclaimedOffline }}</strong></span>
+        </section>
 
-          <el-table v-loading="loading.unclaimed" :data="unclaimedDevices">
-            <el-table-column prop="deviceId" label="Device ID" min-width="170" show-overflow-tooltip />
-            <el-table-column prop="name" label="名称" min-width="140" />
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 'ONLINE' ? 'success' : 'info'" effect="plain">
-                  {{ row.status || 'UNKNOWN' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lastSeenAt" label="最近在线" min-width="170" />
-            <el-table-column prop="createdAt" label="首次上线" min-width="170" />
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openClaimDialog(row)">认领</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+        <el-card shadow="never" v-loading="loading.unclaimed" class="list-shell">
+          <el-row v-if="unclaimedDevices.length" :gutter="16" class="device-grid">
+            <el-col v-for="device in unclaimedDevices" :key="device.deviceId" :xs="24" :sm="12" :xl="8">
+              <div class="device-card unclaimed">
+                <div class="device-card-top">
+                  <div>
+                    <div class="device-name">{{ device.name || '待命名终端' }}</div>
+                    <div class="device-id">{{ device.deviceId }}</div>
+                  </div>
+                  <el-tag :type="device.status === 'ONLINE' ? 'success' : 'info'" effect="plain" round>
+                    {{ device.status === 'ONLINE' ? '在线' : '离线' }}
+                  </el-tag>
+                </div>
+
+                <div class="device-preview waiting">
+                  <div class="preview-shell">
+                    <div class="preview-screen waiting-screen">WAITING</div>
+                    <div class="preview-buttons">
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                  <div class="preview-meta">
+                    <span>{{ formatBoard(device.board) }}</span>
+                    <span>{{ device.registrationStatus || 'UNCLAIMED' }}</span>
+                  </div>
+                </div>
+
+                <div class="stats-row compact">
+                  <div class="mini-stat">
+                    <span>认领码</span>
+                    <strong>{{ device.claimCode || '-' }}</strong>
+                  </div>
+                  <div class="mini-stat">
+                    <span>上次在线</span>
+                    <strong>{{ formatTime(device.lastSeenAt) }}</strong>
+                  </div>
+                </div>
+
+                <div class="device-card-bottom">
+                  <div class="last-seen">
+                    <span>终端状态</span>
+                    <strong>{{ device.status || '-' }}</strong>
+                  </div>
+                  <div class="card-actions">
+                    <el-button type="primary" plain round @click.stop="openClaimDialog(device)">认领设备</el-button>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <el-empty v-else description="当前没有待认领终端" :image-size="80" />
         </el-card>
       </el-tab-pane>
     </el-tabs>
 
-    <!-- Claim Dialog -->
-    <el-dialog v-model="dialogs.claim" title="认领设备" width="460px" destroy-on-close @closed="resetClaimForm">
-      <el-form ref="claimFormRef" :model="claimForm" :rules="claimRules" label-width="80px">
+    <el-dialog v-model="dialogs.claim" title="认领设备" width="460px" destroy-on-close>
+      <el-form label-width="88px">
         <el-form-item label="Device ID">
-          <el-input :model-value="claimTarget?.deviceId" disabled />
+          <el-input :model-value="claimForm.deviceId" disabled />
         </el-form-item>
-        <el-form-item label="认领码" prop="claimCode">
-          <el-input v-model="claimForm.claimCode" placeholder="设备屏幕上显示的6位认领码" maxlength="12" />
+        <el-form-item label="认领码">
+          <el-input v-model="claimForm.claimCode" maxlength="12" placeholder="设备上显示的认领码" />
         </el-form-item>
-        <el-form-item label="设备名称" prop="deviceName">
-          <el-input v-model="claimForm.deviceName" placeholder="给设备起个名字（选填）" maxlength="100" />
+        <el-form-item label="设备名称">
+          <el-input v-model="claimForm.deviceName" maxlength="100" placeholder="可选，认领后显示名" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogs.claim = false">取消</el-button>
-        <el-button type="primary" :loading="loading.claim" @click="handleClaim">确认认领</el-button>
+        <el-button type="primary" :loading="loading.claim" @click="submitClaim">确认认领</el-button>
       </template>
     </el-dialog>
 
-    <!-- Device Detail Drawer -->
-    <el-drawer v-model="dialogs.detail" :title="detailDrawerTitle" size="680px" destroy-on-close @closed="onDetailClosed">
+    <el-drawer v-model="dialogs.detail" :title="detailTitle" size="760px" @closed="onDetailClosed">
       <el-tabs v-model="detailTab">
-        <el-tab-pane label="基本信息" name="info">
-          <el-descriptions v-loading="loading.detail" border :column="2">
-            <el-descriptions-item label="Device ID" :span="2">{{ detail.deviceId }}</el-descriptions-item>
-            <el-descriptions-item label="名称">{{ detail.name }}</el-descriptions-item>
-            <el-descriptions-item label="注册状态">
-              <el-tag :type="detail.registrationStatus === 'CLAIMED' ? 'success' : 'warning'" effect="plain">
-                {{ detail.registrationStatus }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="连接状态">
-              <el-tag :type="detail.status === 'ONLINE' ? 'success' : 'info'" effect="plain">
-                {{ detail.status }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="硬件型号">{{ detail.board || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="屏幕形状">{{ detail.screenShape || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="分辨率">{{ detail.screenWidth || '-' }} x {{ detail.screenHeight || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="输入方式">{{ detail.inputMode || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="当前页面">{{ detail.currentPageId || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="认领时间">{{ detail.claimedAt || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="最近在线" :span="2">{{ detail.lastSeenAt }}</el-descriptions-item>
-            <el-descriptions-item label="可用指令" :span="2">
-              <template v-if="detail.availableCommands?.length">
-                <el-tag
-                  v-for="cmd in detail.availableCommands"
-                  :key="cmd"
-                  size="small"
-                  style="margin: 2px"
-                >{{ cmd }}</el-tag>
-              </template>
-              <span v-else class="text-muted">-</span>
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-
-        <el-tab-pane label="遥测数据" name="telemetry">
-          <div class="telemetry-actions">
-            <el-button plain size="small" :loading="loading.telemetry" @click="fetchTelemetry">刷新</el-button>
+        <el-tab-pane label="设备快照" name="overview">
+          <div class="detail-pane">
+            <el-descriptions v-loading="loading.detail" border :column="2">
+              <el-descriptions-item label="Device ID">{{ detail.deviceId || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="名称">{{ detail.name || detail.deviceName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="状态">{{ detail.status || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="注册状态">{{ detail.registrationStatus || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="板卡">{{ formatBoard(detail.board) }}</el-descriptions-item>
+              <el-descriptions-item label="输入方式">{{ detail.inputMode || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="当前应用">{{ detail.currentAppId || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="当前页面">{{ detail.currentPageId || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="连接时间">{{ formatTime(detail.connectedAt) }}</el-descriptions-item>
+              <el-descriptions-item label="最近在线">{{ formatTime(detail.lastSeenAt) }}</el-descriptions-item>
+              <el-descriptions-item label="备注" :span="2">{{ detail.notes || '-' }}</el-descriptions-item>
+            </el-descriptions>
           </div>
-          <el-table v-loading="loading.telemetry" :data="telemetryData" size="small">
-            <el-table-column prop="createdAt" label="时间" min-width="170" />
-            <el-table-column prop="wifiRssi" label="WiFi RSSI (dBm)" width="140" />
-            <el-table-column prop="temperature" label="温度 (°C)" width="120" />
-            <el-table-column prop="freeHeapInternal" label="内部堆 (bytes)" width="140" />
-            <el-table-column prop="freeHeapTotal" label="总堆 (bytes)" width="130" />
-            <el-table-column prop="uptimeS" label="运行时长 (s)" width="130" />
-          </el-table>
         </el-tab-pane>
 
-        <el-tab-pane label="设备控制" name="control">
-          <template v-if="detail.availableCommands?.length">
-            <div class="control-grid">
-              <div
-                v-for="cmd in controlCommands"
-                :key="cmd.command"
-                class="control-item"
-              >
-                <span class="control-name" :title="cmd.command">{{ cmd.label }}</span>
-                <template v-if="cmd.needsValue">
-                  <el-slider
-                    v-model="cmd.currentValue"
-                    :min="0"
-                    :max="100"
-                    show-input
-                    style="flex:1; margin: 0 12px"
-                  />
-                  <span class="control-unit">%</span>
-                </template>
-                <el-button
-                  :type="cmd.needsValue ? 'warning' : 'primary'"
-                  size="small"
-                  :loading="cmd.sending"
-                  @click="handleControl(cmd)"
-                >
-                  执行
-                </el-button>
-              </div>
-            </div>
-          </template>
-          <el-empty v-else description="该设备无可用的控制指令" />
+        <el-tab-pane label="能力详情" name="capabilities">
+          <div class="detail-pane">
+            <el-card v-loading="loading.capabilities" shadow="never" class="detail-card">
+              <template #header>
+                <div class="detail-card-header">
+                  <span>Resolved Contract</span>
+                  <el-tag :type="capabilityStatusType(capabilities.status)">{{ capabilities.status || 'unknown' }}</el-tag>
+                </div>
+              </template>
+              <pre class="json-panel">{{ prettyJson(capabilities) }}</pre>
+            </el-card>
+
+            <el-card shadow="never" class="detail-card">
+              <template #header><span>Section 能力</span></template>
+              <pre class="json-panel">{{ prettyJson(sections) }}</pre>
+            </el-card>
+
+            <el-card shadow="never" class="detail-card">
+              <template #header><span>设备事件</span></template>
+              <pre class="json-panel">{{ prettyJson(events) }}</pre>
+            </el-card>
+          </div>
         </el-tab-pane>
 
-        <el-tab-pane label="调试" name="debug">
-          <div class="debug-section">
-            <div class="section-title">工作流调试</div>
-            <div class="debug-row">
-              <el-select
-                v-model="debugForm.definitionId"
-                filterable
-                clearable
-                placeholder="选择工作流"
-                style="width: 200px"
-              >
-                <el-option v-for="wf in workflowDefs" :key="wf.id" :label="`${wf.name} (${wf.id})`" :value="wf.id" />
-              </el-select>
-              <el-button :loading="loading.loadWf" @click="handleLoadWorkflow">加载</el-button>
-              <el-button :loading="loading.unloadWf" @click="handleUnloadWorkflow">卸载</el-button>
-            </div>
-            <div class="debug-row" style="margin-top: 8px">
-              <el-input v-model="debugForm.triggerId" placeholder="触发器 ID" style="width: 180px" />
-              <el-button type="success" :loading="loading.triggerWf" @click="handleTriggerWorkflow">手动触发</el-button>
-            </div>
-            <div v-if="wfStatus" class="wf-status">
-              <el-tag>{{ wfStatus.status }}</el-tag>
-              <span>工作流: {{ wfStatus.workflowName || wfStatus.workflowId }}</span>
-              <span>页面: {{ wfStatus.activePage }}</span>
-            </div>
+        <el-tab-pane label="遥测记录" name="telemetry">
+          <div class="detail-pane">
+            <el-table v-loading="loading.telemetry" :data="telemetryRows" size="small">
+              <el-table-column prop="createdAt" label="时间" min-width="180">
+                <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column label="RSSI" min-width="100">
+                <template #default="{ row }">{{ row.wifi?.rssi ?? row.wifiRssi ?? '-' }}</template>
+              </el-table-column>
+              <el-table-column label="温度" min-width="100">
+                <template #default="{ row }">{{ row.temperature?.celsius ?? row.temperature ?? '-' }}</template>
+              </el-table-column>
+              <el-table-column label="电量" min-width="100">
+                <template #default="{ row }">{{ row.power?.batteryPct ?? row.batteryPct ?? '-' }}</template>
+              </el-table-column>
+              <el-table-column label="运行时长(s)" min-width="120">
+                <template #default="{ row }">{{ row.uptimeS ?? '-' }}</template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!telemetryRows.length && !loading.telemetry" description="暂无遥测数据" :image-size="60" />
+          </div>
+        </el-tab-pane>
 
-            <el-divider />
-            <div class="section-title">Section 调试</div>
-            <div class="debug-row">
-              <el-select v-model="debugForm.preset" filterable placeholder="预设场景" style="width: 200px">
-                <el-option v-for="p in presets" :key="p" :label="p" :value="p" />
-              </el-select>
-              <el-button :loading="loading.sendScene" @click="handleSendScene">发送场景</el-button>
-              <el-input-number v-model="debugForm.intervalMs" :min="500" :step="500" style="width: 140px" />
-              <el-button
-                v-if="!autoRunning"
-                type="warning"
-                :loading="loading.startAuto"
-                @click="handleStartAuto"
-              >
-                自动更新
-              </el-button>
-              <el-button v-else type="danger" :loading="loading.stopAuto" @click="handleStopAuto">停止</el-button>
-            </div>
+        <el-tab-pane label="连接日志" name="connection">
+          <div class="detail-pane">
+            <el-table v-loading="loading.connection" :data="connectionRows" size="small">
+              <el-table-column prop="createdAt" label="时间" min-width="180">
+                <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column prop="event" label="事件" min-width="140" />
+              <el-table-column prop="status" label="状态" min-width="120" />
+              <el-table-column prop="message" label="说明" min-width="220" show-overflow-tooltip />
+            </el-table>
+            <el-empty v-if="!connectionRows.length && !loading.connection" description="暂无连接日志" :image-size="60" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -225,488 +299,538 @@
 </template>
 
 <script>
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import Pagination from '@/components/Pagination/index.vue';
 import {
-  getDeviceList,
-  getUnclaimedDevices,
-  getDeviceDetail,
-  getDeviceTelemetry,
   claimDevice,
-  sendDeviceControl,
-  getSectionPresets,
-  getWorkflowDefinitions,
-  getWorkflowStatus,
-  getAutoUpdateStatus,
-  loadWorkflow,
-  unloadWorkflow,
-  triggerWorkflow,
-  sendScene,
-  startAutoUpdate,
-  stopAutoUpdate
+  deleteDevice,
+  getDeviceCapabilities,
+  getDeviceCapabilityEvents,
+  getDeviceConnectionLog,
+  getDeviceDetail,
+  getDeviceList,
+  getDeviceSections,
+  getDeviceTelemetry,
+  getDeviceTypes,
+  getUnclaimedDevices
 } from '@/api/sdui';
-
-const COMMAND_LABELS = {
-  'display.section.render': '触发 Section 渲染',
-  'display.section.patch': '触发 Section 增量更新',
-  'display.layout.render': '触发 Layout 渲染',
-  'display.layout.patch': '触发 Layout 增量更新',
-  'display.brightness.set': '屏幕亮度',
-  'audio.prompt.play': '播放提示音',
-  'audio.stream.play': '播放音频流',
-  'audio.volume.set': '音量',
-  'rgb.effect.set': 'RGB 灯效',
-  'rgb.off': '关闭 RGB',
-  'device.reboot': '重启设备'
-};
-
-const COMMANDS_NEEDING_VALUE = [
-  'display.brightness.set',
-  'audio.volume.set'
-];
 
 export default {
   name: 'SduiDevices',
+  components: { Pagination },
   data() {
     return {
       activeTab: 'claimed',
+      claimedDevices: [],
+      unclaimedDevices: [],
+      deviceTypes: [],
+      telemetryRows: [],
+      connectionRows: [],
+      detail: {},
+      capabilities: {},
+      sections: {},
+      events: [],
+      claimForm: {
+        deviceId: '',
+        claimCode: '',
+        deviceName: ''
+      },
+      filters: {
+        status: '',
+        board: '',
+        search: '',
+        sortBy: 'lastSeenAt',
+        sortDir: 'DESC'
+      },
+      pagination: {
+        page: 1,
+        size: 12,
+        total: 0
+      },
+      detailTab: 'overview',
+      detailDrawerKey: 0,
+      dialogs: {
+        claim: false,
+        detail: false
+      },
       loading: {
         claimed: false,
         unclaimed: false,
+        claim: false,
         detail: false,
         telemetry: false,
-        claim: false,
-        loadWf: false,
-        unloadWf: false,
-        triggerWf: false,
-        sendScene: false,
-        startAuto: false,
-        stopAuto: false
-      },
-      claimedDevices: [],
-      unclaimedDevices: [],
-      detail: {},
-      telemetryData: [],
-      presets: [],
-      workflowDefs: [],
-      wfStatus: null,
-      autoRunning: false,
-      activeDeviceId: '',
-
-      // Claim
-      claimTarget: null,
-      claimForm: { claimCode: '', deviceName: '' },
-      claimFormRef: null,
-      claimRules: {
-        claimCode: [
-          { required: true, message: '请输入认领码', trigger: 'blur' },
-          { min: 4, max: 12, message: '认领码长度为 4-12 个字符', trigger: 'blur' }
-        ]
-      },
-
-      // Debug
-      debugForm: { definitionId: '', triggerId: '', preset: 'full_dashboard', intervalMs: 3000 },
-
-      dialogs: { claim: false, detail: false },
-      detailTab: 'info',
-      listTimer: null
+        connection: false,
+        capabilities: false,
+        deviceTypes: false
+      }
     };
   },
   computed: {
-    claimedOnlineCount() {
-      return this.claimedDevices.filter(d => d.status === 'ONLINE').length;
+    summary() {
+      return {
+        online: this.claimedDevices.filter((item) => item.status === 'ONLINE').length,
+        offline: this.claimedDevices.filter((item) => item.status !== 'ONLINE').length
+      };
     },
-    claimedOfflineCount() {
-      return this.claimedDevices.filter(d => d.status !== 'ONLINE').length;
+    unclaimedOnline() {
+      return this.unclaimedDevices.filter((item) => item.status === 'ONLINE').length;
     },
-    detailDrawerTitle() {
-      return this.detail.name
-        ? `设备详情 - ${this.detail.name}`
-        : '设备详情';
+    unclaimedOffline() {
+      return this.unclaimedDevices.filter((item) => item.status !== 'ONLINE').length;
     },
-    controlCommands() {
-      return (this.detail.availableCommands || []).map(cmd => ({
-        command: cmd,
-        label: COMMAND_LABELS[cmd] || cmd,
-        needsValue: COMMANDS_NEEDING_VALUE.includes(cmd),
-        currentValue: 50,
-        sending: false
-      }));
+    detailTitle() {
+      return this.detail.name || this.detail.deviceName || this.detail.deviceId || '设备详情';
     }
   },
   created() {
-    this.fetchClaimedDevices();
-    this.listTimer = setInterval(() => {
-      if (this.activeTab === 'claimed') {
-        this.fetchClaimedDevices();
-      } else {
-        this.fetchUnclaimedDevices();
-      }
-    }, 15000);
-  },
-  beforeUnmount() {
-    clearInterval(this.listTimer);
-  },
-  activated() {
-    this.onTabChange(this.activeTab);
-    this.listTimer = setInterval(() => {
-      if (this.activeTab === 'claimed') {
-        this.fetchClaimedDevices();
-      } else {
-        this.fetchUnclaimedDevices();
-      }
-    }, 15000);
-  },
-  deactivated() {
-    clearInterval(this.listTimer);
+    this.refreshAll();
+    this.fetchDeviceTypes();
   },
   methods: {
-    onTabChange(tabName) {
-      if (tabName === 'claimed') {
-        this.fetchClaimedDevices();
-      } else {
-        this.fetchUnclaimedDevices();
-      }
+    async refreshAll() {
+      await Promise.all([this.fetchClaimedDevices(), this.fetchUnclaimedDevices()]);
     },
-
     async fetchClaimedDevices() {
       this.loading.claimed = true;
       try {
-        const res = await getDeviceList();
-        this.claimedDevices = Array.isArray(res?.data) ? res.data : [];
+        const params = {
+          page: this.pagination.page - 1,
+          size: this.pagination.size,
+          registrationStatus: 'CLAIMED',
+          status: this.filters.status || undefined,
+          board: this.filters.board || undefined,
+          search: this.filters.search || undefined,
+          sortBy: this.filters.sortBy,
+          sortDir: this.filters.sortDir
+        };
+        const res = await getDeviceList(params);
+        const data = res?.data || {};
+        this.claimedDevices = data.items || [];
+        this.pagination.total = data.total || this.claimedDevices.length;
       } catch {
-        ElMessage.error('加载设备列表失败');
+        this.claimedDevices = [];
+        ElMessage.error('加载终端列表失败');
       } finally {
         this.loading.claimed = false;
       }
     },
-
     async fetchUnclaimedDevices() {
       this.loading.unclaimed = true;
       try {
         const res = await getUnclaimedDevices();
-        this.unclaimedDevices = Array.isArray(res?.data) ? res.data : [];
+        this.unclaimedDevices = res?.data || [];
       } catch {
+        this.unclaimedDevices = [];
         ElMessage.error('加载未认领设备失败');
       } finally {
         this.loading.unclaimed = false;
       }
     },
-
-    // ── Claim ──────────────────────────────────────────────
-
-    openClaimDialog(row) {
-      this.claimTarget = row;
-      this.claimForm = { claimCode: '', deviceName: '' };
+    async fetchDeviceTypes() {
+      this.loading.deviceTypes = true;
+      try {
+        const res = await getDeviceTypes();
+        this.deviceTypes = res?.data || [];
+      } finally {
+        this.loading.deviceTypes = false;
+      }
+    },
+    resetAndFetch() {
+      this.pagination.page = 1;
+      this.fetchClaimedDevices();
+    },
+    handlePagination({ page, limit }) {
+      this.pagination.page = page;
+      this.pagination.size = limit;
+      this.fetchClaimedDevices();
+    },
+    openClaimDialog(device) {
+      this.claimForm = {
+        deviceId: device.deviceId || '',
+        claimCode: device.claimCode || '',
+        deviceName: device.name || ''
+      };
       this.dialogs.claim = true;
     },
-
-    resetClaimForm() {
-      this.claimTarget = null;
-      this.claimForm = { claimCode: '', deviceName: '' };
-    },
-
-    async handleClaim() {
-      if (!this.claimForm.claimCode.trim()) {
-        ElMessage.warning('请输入认领码');
+    async submitClaim() {
+      if (!this.claimForm.deviceId || !this.claimForm.claimCode) {
+        ElMessage.warning('请填写设备 ID 和认领码');
         return;
       }
       this.loading.claim = true;
       try {
-        await claimDevice(this.claimTarget.deviceId, {
+        await claimDevice(this.claimForm.deviceId, {
           claimCode: this.claimForm.claimCode.trim(),
           deviceName: this.claimForm.deviceName.trim() || undefined
         });
         ElMessage.success('设备认领成功');
         this.dialogs.claim = false;
-        await this.fetchUnclaimedDevices();
-      } catch (err) {
-        const msg = err?.response?.data?.message || err?.message || '认领失败';
-        ElMessage.error(msg);
+        this.activeTab = 'claimed';
+        await this.refreshAll();
+      } catch {
+        ElMessage.error('设备认领失败');
       } finally {
         this.loading.claim = false;
       }
     },
-
-    // ── Detail ─────────────────────────────────────────────
-
-    async openDetail(row) {
-      this.activeDeviceId = row.deviceId;
-      this.dialogs.detail = true;
-      this.detailTab = 'info';
-      await Promise.all([this.loadDetailData(), this.loadDebugData()]);
-    },
-
-    async loadDetailData() {
-      this.loading.detail = true;
-      this.wfStatus = null;
-
+    async handleDelete(device) {
       try {
-        const res = await getDeviceDetail(this.activeDeviceId);
-        this.detail = res?.data || {};
+        await ElMessageBox.confirm(`确认删除设备 ${device.name || device.deviceId}？`, '删除设备', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
+          type: 'warning'
+        });
+      } catch {
+        return;
+      }
+      try {
+        await deleteDevice(device.deviceId);
+        ElMessage.success('设备已删除');
+        this.fetchClaimedDevices();
+      } catch {
+        ElMessage.error('删除设备失败');
+      }
+    },
+    async openDetail(device) {
+      this.detailDrawerKey += 1;
+      this.dialogs.detail = true;
+      this.detailTab = 'overview';
+      const deviceId = device.deviceId;
+      this.loading.detail = true;
+      this.loading.capabilities = true;
+      this.loading.telemetry = true;
+      this.loading.connection = true;
+      try {
+        const [detailRes, capabilityRes, sectionRes, eventRes, telemetryRes, connectionRes] = await Promise.all([
+          getDeviceDetail(deviceId),
+          getDeviceCapabilities(deviceId),
+          getDeviceSections(deviceId),
+          getDeviceCapabilityEvents(deviceId),
+          getDeviceTelemetry(deviceId, { page: 0, size: 20 }),
+          getDeviceConnectionLog(deviceId, { page: 0, size: 20 })
+        ]);
+        this.detail = detailRes?.data || {};
+        this.capabilities = capabilityRes?.data || {};
+        this.sections = sectionRes?.data || {};
+        this.events = eventRes?.data?.events || [];
+        this.telemetryRows = telemetryRes?.data?.items || telemetryRes?.data || [];
+        this.connectionRows = connectionRes?.data?.items || connectionRes?.data || [];
       } catch {
         ElMessage.error('加载设备详情失败');
       } finally {
         this.loading.detail = false;
-      }
-    },
-
-    async fetchTelemetry() {
-      this.loading.telemetry = true;
-      try {
-        const res = await getDeviceTelemetry(this.activeDeviceId);
-        this.telemetryData = Array.isArray(res?.data) ? res.data : [];
-      } catch {
-        ElMessage.error('加载遥测数据失败');
-      } finally {
+        this.loading.capabilities = false;
         this.loading.telemetry = false;
+        this.loading.connection = false;
       }
     },
-
-    async onDetailClosed() {
+    onDetailClosed() {
       this.detail = {};
-      this.telemetryData = [];
-      this.wfStatus = null;
-      this.activeDeviceId = '';
+      this.capabilities = {};
+      this.sections = {};
+      this.events = [];
+      this.telemetryRows = [];
+      this.connectionRows = [];
     },
-
-    // ── Control ────────────────────────────────────────────
-
-    async handleControl(cmd) {
-      if (cmd.needsValue && (cmd.currentValue == null || cmd.currentValue < 0)) {
-        ElMessage.warning('请设置有效的值');
-        return;
-      }
-      cmd.sending = true;
-      try {
-        const payload = { command: cmd.command };
-        if (cmd.needsValue) {
-          payload.value = cmd.currentValue;
-        }
-        const res = await sendDeviceControl(this.activeDeviceId, payload);
-        const status = res?.data?.status;
-        if (status === 'SENT') {
-          ElMessage.success(`指令 ${cmd.label} 已发送`);
-        } else if (status === 'FAILED') {
-          ElMessage.error('设备离线，发送失败');
-        } else {
-          ElMessage.info(`指令状态: ${status}`);
-        }
-      } catch {
-        ElMessage.error('发送指令失败');
-      } finally {
-        cmd.sending = false;
-      }
+    batteryLabel(device) {
+      const value = device?.lastTelemetry?.power?.batteryPct;
+      return value == null ? '-' : `${value}%`;
     },
-
-    // ── Debug: Workflow ────────────────────────────────────
-
-    async loadDebugData() {
-      const [presetsRes, wfDefsRes, autoRes] = await Promise.allSettled([
-        getSectionPresets(),
-        getWorkflowDefinitions(),
-        getAutoUpdateStatus()
-      ]);
-      if (presetsRes.status === 'fulfilled') {
-        this.presets = presetsRes.value?.data?.presets || [];
-      }
-      if (wfDefsRes.status === 'fulfilled') {
-        this.workflowDefs = Array.isArray(wfDefsRes.value?.data) ? wfDefsRes.value.data : [];
-      }
-      if (autoRes.status === 'fulfilled') {
-        const tasks = autoRes.value?.data || [];
-        this.autoRunning = Array.isArray(tasks)
-          ? tasks.some(t => t.deviceId === this.activeDeviceId || t.running)
-          : false;
-      }
-      try {
-        const statusRes = await getWorkflowStatus(this.activeDeviceId);
-        this.wfStatus = statusRes?.data || null;
-      } catch {
-        this.wfStatus = null;
-      }
+    wifiLabel(device) {
+      const value = device?.lastTelemetry?.wifi?.rssi;
+      return value == null ? '-' : `${value} dBm`;
     },
-
-    async handleLoadWorkflow() {
-      if (!this.debugForm.definitionId) {
-        ElMessage.warning('请先选择工作流');
-        return;
-      }
-      this.loading.loadWf = true;
-      try {
-        await loadWorkflow(this.activeDeviceId, this.debugForm.definitionId);
-        ElMessage.success('工作流已加载');
-        const statusRes = await getWorkflowStatus(this.activeDeviceId);
-        this.wfStatus = statusRes?.data || null;
-      } catch {
-        ElMessage.error('加载工作流失败');
-      } finally {
-        this.loading.loadWf = false;
-      }
+    tempLabel(device) {
+      const value = device?.lastTelemetry?.temperature?.celsius;
+      return value == null ? '-' : `${value}°C`;
     },
-
-    async handleUnloadWorkflow() {
-      this.loading.unloadWf = true;
-      try {
-        await unloadWorkflow(this.activeDeviceId);
-        ElMessage.success('工作流已卸载');
-        this.wfStatus = null;
-      } catch {
-        ElMessage.error('卸载工作流失败');
-      } finally {
-        this.loading.unloadWf = false;
-      }
+    formatTime(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleString('zh-CN', { hour12: false });
     },
-
-    async handleTriggerWorkflow() {
-      if (!this.debugForm.triggerId.trim()) {
-        ElMessage.warning('请输入触发器 ID');
-        return;
-      }
-      this.loading.triggerWf = true;
-      try {
-        await triggerWorkflow(this.activeDeviceId, this.debugForm.triggerId.trim());
-        ElMessage.success('触发已发送');
-      } catch {
-        ElMessage.error('触发失败');
-      } finally {
-        this.loading.triggerWf = false;
-      }
+    formatBoard(value) {
+      return value || '-';
     },
-
-    async handleSendScene() {
-      if (!this.debugForm.preset) {
-        ElMessage.warning('请选择预设场景');
-        return;
-      }
-      this.loading.sendScene = true;
-      try {
-        await sendScene(this.activeDeviceId, this.debugForm.preset);
-        ElMessage.success('场景已发送');
-      } catch {
-        ElMessage.error('发送场景失败');
-      } finally {
-        this.loading.sendScene = false;
-      }
+    capabilityStatusType(status) {
+      if (status === 'ok') return 'success';
+      if (status === 'partial') return 'warning';
+      return 'info';
     },
-
-    async handleStartAuto() {
-      this.loading.startAuto = true;
-      try {
-        await startAutoUpdate(this.activeDeviceId, this.debugForm.preset, this.debugForm.intervalMs);
-        this.autoRunning = true;
-        ElMessage.success('自动更新已启动');
-      } catch {
-        ElMessage.error('启动自动更新失败');
-      } finally {
-        this.loading.startAuto = false;
-      }
-    },
-
-    async handleStopAuto() {
-      this.loading.stopAuto = true;
-      try {
-        await stopAutoUpdate(this.activeDeviceId);
-        this.autoRunning = false;
-        ElMessage.success('自动更新已停止');
-      } catch {
-        ElMessage.error('停止自动更新失败');
-      } finally {
-        this.loading.stopAuto = false;
-      }
+    prettyJson(value) {
+      return JSON.stringify(value || {}, null, 2);
     }
   }
 };
 </script>
 
 <style scoped>
-.sdui-devices {
+.sdui-devices-page {
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 
-.card-header {
+.hero,
+.hero-actions,
+.summary-bar,
+.filter-bar,
+.device-card-top,
+.device-card-bottom,
+.preview-meta,
+.card-actions,
+.detail-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
   gap: 12px;
-}
-
-.stat {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-
-.stat.online  { background: #eaf7ef; color: #2f8f54; }
-.stat.offline { background: #f3f4f6; color: #636d7c; }
-
-.text-muted { color: #909399; font-size: 13px; }
-
-/* Telemetry */
-.telemetry-actions {
-  margin-bottom: 12px;
-}
-
-/* Control */
-.control-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.control-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: #fafafa;
-  border-radius: 8px;
-  gap: 8px;
-}
-
-.control-name {
-  min-width: 160px;
-  font-size: 13px;
-  color: #303133;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.control-unit {
-  font-size: 12px;
-  color: #909399;
-  min-width: 20px;
-}
-
-/* Debug */
-.debug-section {
-  padding: 8px 0;
-}
-
-.section-title {
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.debug-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
   flex-wrap: wrap;
 }
 
-.wf-status {
-  margin-top: 8px;
+.hero {
+  padding: 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f8fafc, #eef6ff 45%, #f0fdf4);
+}
+
+.hero h1 {
+  margin: 6px 0 8px;
+}
+
+.hero-kicker {
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.summary-bar {
+  margin: 8px 0 14px;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.summary-bar .online strong {
+  color: #15803d;
+}
+
+.summary-bar .offline strong {
+  color: #6b7280;
+}
+
+.filter-bar {
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+
+.list-shell {
+  margin-top: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+:deep(.list-shell .el-card__body) {
+  padding: 20px;
+}
+
+.device-grid {
+  width: 100%;
+}
+
+.device-card {
+  height: 100%;
+  padding: 18px;
+  border: 1px solid #dbe7f3;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f9fbff);
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.device-card:hover {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+.device-card.unclaimed {
+  background: linear-gradient(180deg, #fffdf7, #fff7ed);
+}
+
+.device-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.device-id,
+.preview-meta,
+.meta-pill,
+.last-seen span {
+  color: #6b7280;
+}
+
+.device-preview {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+
+.device-preview.waiting {
+  background: linear-gradient(135deg, #fff7ed, #fffbeb);
+}
+
+.preview-shell {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #606266;
-  font-size: 13px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.preview-screen {
+  width: 132px;
+  height: 90px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #111827;
+}
+
+.waiting-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.screen-line {
+  height: 8px;
+  border-radius: 999px;
+  background: #38bdf8;
+  margin-bottom: 8px;
+}
+
+.screen-line.wide {
+  width: 80%;
+}
+
+.screen-line.short {
+  width: 46%;
+}
+
+.screen-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 26px;
+}
+
+.screen-bars span {
+  width: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+}
+
+.screen-bars span:nth-child(1) {
+  height: 10px;
+}
+
+.screen-bars span:nth-child(2) {
+  height: 16px;
+}
+
+.screen-bars span:nth-child(3) {
+  height: 22px;
+}
+
+.screen-bars span:nth-child(4) {
+  height: 14px;
+}
+
+.preview-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-buttons span {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.stats-row,
+.pill-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stats-row.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mini-stat,
+.meta-pill {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5edf6;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.mini-stat span {
+  display: block;
+  margin-bottom: 6px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.mini-stat strong,
+.last-seen strong {
+  color: #111827;
+}
+
+.meta-pill {
+  text-align: center;
+  font-size: 12px;
+}
+
+.detail-pane {
+  min-height: 320px;
+}
+
+.detail-card {
+  margin-bottom: 16px;
+}
+
+.last-seen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.json-panel {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #dbeafe;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .stats-row,
+  .pill-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
