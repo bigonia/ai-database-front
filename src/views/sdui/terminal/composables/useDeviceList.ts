@@ -2,7 +2,7 @@ import { ref, reactive } from 'vue';
 import {
   getDeviceList,
   getUnclaimedDevices,
-  getDeviceTypes,
+  getBoardTypes,
   claimDevice,
   deleteDevice
 } from '@/api/sdui';
@@ -89,9 +89,8 @@ export function useDeviceList() {
   async function fetchDeviceTypes() {
     loading.types = true;
     try {
-      const res = await getDeviceTypes();
-      const data = res?.data as DeviceTypesResponse | undefined;
-      deviceTypes.value = data?.types || [];
+      const res = await getBoardTypes();
+      deviceTypes.value = Array.isArray(res?.data) ? (res.data as DeviceTypeInfo[]) : [];
     } finally {
       loading.types = false;
     }

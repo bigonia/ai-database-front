@@ -108,10 +108,54 @@ export const constantRoutes: RouteRecordRaw[] = [
         redirect: '/sdui/terminal',
         meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
+      // ── Node Workflow 新路由 ──
       {
-        path: 'management',
-        redirect: '/sdui/catalog',
-        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+        path: 'node-workflows',
+        name: 'SduiNodeWorkflows',
+        component: () => import('@/views/sdui/workflow/WorkflowLibrary.vue'),
+        meta: { title: '节点工作流', icon: 'share', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'node-workflows/editor',
+        name: 'SduiNodeWorkflowEditor',
+        component: () => import('@/views/sdui/workflow/WorkflowEditor.vue'),
+        meta: { title: '工作流编辑器', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'node-workflows/runs',
+        name: 'SduiWorkflowRuns',
+        component: () => import('@/views/sdui/workflow/RunHistory.vue'),
+        meta: { title: '运行记录', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'node-workflows/:workflowId/runs/:runId',
+        name: 'SduiWorkflowRunDetail',
+        component: () => import('@/views/sdui/workflow/RunDetail.vue'),
+        meta: { title: '运行详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'node-workflows/:workflowId/deployments',
+        name: 'SduiWorkflowDeployments',
+        component: () => import('@/views/sdui/workflow/DeploymentManagement.vue'),
+        meta: { title: '部署管理', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'node-workflows/:workflowId/deployments/:deploymentId',
+        name: 'SduiWorkflowDeploymentDetail',
+        component: () => import('@/views/sdui/workflow/DeploymentDetail.vue'),
+        meta: { title: '部署详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'ui-templates',
+        name: 'SduiUiTemplates',
+        component: () => import('@/views/sdui/template/UiTemplateLibrary.vue'),
+        meta: { title: 'UI 模板', icon: 'form', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
+      {
+        path: 'ui-templates/editor',
+        name: 'SduiUiTemplateEditor',
+        component: () => import('@/views/sdui/template/UiTemplateEditor.vue'),
+        meta: { title: '模板编辑器', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       }
     ]
   }
@@ -149,78 +193,6 @@ export const asyncRoutes: RouteRecordRaw[] = [
           icon: 'wechat',
           roles: ['admin', 'editor', 'guest']
         }
-      }
-    ]
-  },
-  {
-    path: '/datasource',
-    component: Layout,
-    redirect: '/datasource/list',
-    name: 'Datasource',
-    meta: {
-      title: 'Datasource',
-      icon: 'table',
-      roles: ['admin', 'editor', 'guest']
-    },
-    children: [
-      {
-        path: 'list',
-        name: 'DatasourceList',
-        component: () => import('@/views/datasource/index.vue'),
-        meta: { title: 'Datasource List', icon: 'table', roles: ['editor', 'guest'] }
-      }
-    ]
-  },
-  {
-    path: '/file-ops',
-    component: Layout,
-    redirect: '/file-ops/manager',
-    name: 'FileOps',
-    meta: { title: 'File Manager', icon: 'documentation', roles: ['editor', 'guest'] },
-    children: [
-      {
-        path: 'manager',
-        name: 'FileManager',
-        component: () => import('@/views/file-manager/index.vue'),
-        meta: { title: 'File List', icon: 'documentation', roles: ['editor', 'guest'] }
-      }
-    ]
-  },
-  {
-    path: '/domain-docs',
-    component: Layout,
-    redirect: '/domain-docs/list',
-    name: 'DomainDocs',
-    meta: {
-      title: 'Domain Docs',
-      icon: 'documentation',
-      roles: ['editor', 'guest']
-    },
-    children: [
-      {
-        path: 'list',
-        component: () => import('@/views/domain-docs/index.vue'),
-        name: 'DomainDocList',
-        meta: { title: 'Domain Documents', icon: 'list', noCache: true, roles: ['editor', 'guest'] }
-      }
-    ]
-  },
-  {
-    path: '/knowledge',
-    component: Layout,
-    redirect: '/knowledge/list',
-    name: 'KnowledgeBase',
-    meta: {
-      title: 'Knowledge Base',
-      icon: 'documentation',
-      roles: ['editor', 'guest']
-    },
-    children: [
-      {
-        path: 'list',
-        component: () => import('@/views/knowledge/index.vue'),
-        name: 'DocumentList',
-        meta: { title: 'Vector Store', icon: 'list', roles: ['editor', 'guest'] }
       }
     ]
   },

@@ -1,6 +1,6 @@
 import type { DebugSectionDisplayField } from './types';
 
-type FieldControl = 'text' | 'textarea' | 'number' | 'switch' | 'json';
+type FieldControl = 'text' | 'textarea' | 'number' | 'switch' | 'select' | 'json';
 
 interface FieldSemanticMeta {
   label: string;
@@ -44,7 +44,7 @@ const COMMON_FIELD_MAP: Record<string, FieldSemanticMeta> = {
 
 const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
   hero_section: {
-    title: 'Hero 主指标卡',
+    title: '核心指标卡片',
     summary: '展示单个最重要的数据点，通常由大号数值和指标名称组成。',
     fieldMap: {
       value: { label: '主数值', help: '最醒目的核心指标值。', placeholder: '92%' },
@@ -57,33 +57,33 @@ const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
     }
   },
   metric_section: {
-    title: 'Metric 指标网格',
+    title: '多指标卡片',
     summary: '并列展示多个 KPI，适合紧凑的仪表盘指标块。',
     fieldMap: {
       metrics: {
         label: '指标列表',
-        help: 'JSON 数组，每项建议包含 label 和 value。',
-        placeholder: '[{"label":"CPU","value":"82%"}]',
+        help: '逐项添加指标，并分别设置标签和数值。',
+        placeholder: '',
         control: 'json'
       }
     }
   },
   chart_section: {
-    title: 'Chart 趋势图',
+    title: '趋势图表',
     summary: '展示一组趋势点，适合小型折线图或柱状趋势。',
     fieldMap: {
       title: { label: '图表标题', help: '说明趋势图代表的指标。', placeholder: 'CPU Trend' },
       points: {
         label: '趋势点',
-        help: 'JSON 数组，通常是一组整数点。',
-        placeholder: '[12, 30, 18, 44, 39]',
+        help: '逐项添加趋势图中的数值点。',
+        placeholder: '',
         control: 'json'
       },
       progress: COMMON_FIELD_MAP.progress
     }
   },
   progress_section: {
-    title: 'Progress 进度块',
+    title: '进度卡片',
     summary: '展示明确的完成进度和进度说明。',
     fieldMap: {
       title: { label: '进度标题', help: '说明当前进度主题。', placeholder: '同步状态' },
@@ -92,7 +92,7 @@ const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
     }
   },
   text_section: {
-    title: 'Text 文本说明',
+    title: '文本卡片',
     summary: '展示标题和正文，用于帮助文案、提示说明或状态解释。',
     fieldMap: {
       title: { label: '标题', help: '文本块主题。', placeholder: '提示' },
@@ -105,21 +105,21 @@ const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
     }
   },
   timer_section: {
-    title: 'Timer 计时状态',
+    title: '计时卡片',
     summary: '展示运行时长、运行状态和可选进度。',
     fieldMap: {
       title: { label: '计时标题', help: '说明当前计时场景。', placeholder: '运行时长' },
       progress: COMMON_FIELD_MAP.progress,
       timer: {
         label: '计时对象',
-        help: 'JSON 对象，通常包含 elapsedMs 和 running。',
-        placeholder: '{"elapsedMs":32000,"running":true}',
+        help: '设置已过毫秒数和运行状态。',
+        placeholder: '',
         control: 'json'
       }
     }
   },
   image_section: {
-    title: 'Image 图标卡片',
+    title: '图标卡片',
     summary: '以图标或图像为主的说明卡片。',
     fieldMap: {
       iconSrc: COMMON_FIELD_MAP.iconSrc,
@@ -128,7 +128,7 @@ const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
     }
   },
   overlay_section: {
-    title: 'Overlay 浮层通知',
+    title: '浮层提示',
     summary: '居中浮层或告警提示，用于强调确认或通知。',
     fieldMap: {
       title: { label: '通知标题', help: '浮层主题。', placeholder: '设备告警' },
@@ -144,49 +144,49 @@ const SECTION_SEMANTICS: Record<string, SectionSemanticMeta> = {
     }
   },
   action_section: {
-    title: 'Action 操作按钮组',
+    title: '操作按钮组',
     summary: '展示一组清晰可点击的操作按钮。',
     fieldMap: {
       actions: {
         label: '按钮列表',
-        help: 'JSON 数组，每项建议包含 id、label、tone、enabled。',
-        placeholder: '[{"id":"confirm","label":"确认","tone":"primary","enabled":true}]',
+        help: '逐项添加按钮，并设置标识、文本、样式和启用状态。',
+        placeholder: '',
         control: 'json'
       }
     }
   },
   toggle_section: {
-    title: 'Toggle 开关组',
+    title: '开关选项组',
     summary: '展示多个二态选项，用于切换配置或状态。',
     fieldMap: {
       options: {
         label: '开关项列表',
-        help: 'JSON 数组，每项建议包含 id、label、active。',
-        placeholder: '[{"id":"wifi","label":"Wi-Fi","active":true}]',
+        help: '逐项添加开关选项，并设置标识、文本和状态。',
+        placeholder: '',
         control: 'json'
       }
     }
   },
   list_section: {
-    title: 'List 列表块',
+    title: '列表卡片',
     summary: '展示可点击的项目列表，适合消息、任务或菜单。',
     fieldMap: {
       items: {
         label: '列表项',
-        help: 'JSON 数组，每项建议包含 id、title、subtitle、tone、iconSrc。',
-        placeholder: '[{"id":"msg_1","title":"新消息","subtitle":"2 分钟前"}]',
+        help: '逐项添加列表内容，并设置标题、说明、色调和图标。',
+        placeholder: '',
         control: 'json'
       }
     }
   },
   nav_section: {
-    title: 'Nav 标签导航',
+    title: '标签导航',
     summary: '展示导航标签栏或分段选择器。',
     fieldMap: {
       tabs: {
         label: '标签列表',
-        help: 'JSON 数组，每项建议包含 id 和 label。',
-        placeholder: '[{"id":"overview","label":"总览"}]',
+        help: '逐项添加导航标签，并设置标识和显示文本。',
+        placeholder: '',
         control: 'json'
       },
       activeTab: { label: '当前激活标签', help: '与 tabs[].id 对应。', placeholder: 'overview' }
@@ -204,17 +204,22 @@ export function getSectionSemantic(type: string) {
 
 export function getFieldSemantic(type: string, field: DebugSectionDisplayField) {
   const section = getSectionSemantic(type);
-  return section.fieldMap[field.name] || {
-    label: humanizeFieldName(field.name),
-    help: field.children.length ? '这是一个复合字段，建议按 JSON 结构填写。' : '',
-    placeholder: field.name,
-    control: inferControl(field)
+  const hardcoded = section.fieldMap[field.name] || null;
+  // 使用后端 label 作为主源，hardcoded 仅做 fallback
+  const label = field.label || hardcoded?.label || humanizeFieldName(field.name);
+  const control = hardcoded?.control || inferControl(field);
+  return {
+    label,
+    help: hardcoded?.help || (field.children.length ? '根据字段结构逐项设置内容。' : ''),
+    placeholder: hardcoded?.placeholder || field.name,
+    control
   };
 }
 
 export function inferControl(field: DebugSectionDisplayField): FieldControl {
   if (field.children.length) return 'json';
   if (field.type === 'bool') return 'switch';
+  if (field.type === 'enum') return 'select';
   if (field.type === 'int' || field.type === 'float') return 'number';
   if (field.type === 'string') return 'text';
   return 'json';

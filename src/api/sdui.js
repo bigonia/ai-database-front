@@ -18,11 +18,6 @@ export function getUnclaimedDevices() {
   return request({ url: `${BASE}/devices/unclaimed`, method: 'get' });
 }
 
-/** 3.3 设备类型汇总 (auto-discovered board aggregation) */
-export function getDeviceTypes() {
-  return request({ url: `${BASE}/devices/types`, method: 'get' });
-}
-
 /** 4.1 设备完整快照 */
 export function getDeviceDetail(deviceId) {
   return request({ url: `${BASE}/devices/${deviceId}`, method: 'get' });
@@ -126,9 +121,44 @@ export function getDeviceCommandStats(deviceId, params) {
   return request({ url: `${BASE}/debug/${deviceId}/command-stats`, method: 'get', params });
 }
 
-/** 5.7.1 Section 编辑器元数据 */
-export function getDebugSectionEditor(deviceId) {
-  return request({ url: `${BASE}/debug/${deviceId}/section-editor`, method: 'get' });
+function buildSduiRequestHeaders(extraHeaders = {}) {
+  const token = getToken();
+  const spaceId = localStorage.getItem('space_id') || '';
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(spaceId ? { 'X-Space-Id': spaceId } : {}),
+    ...extraHeaders
+  };
+}
+
+async function getSduiRaw(path, config = {}) {
+  const response = await axios({
+    url: buildSduiStreamUrl(path),
+    method: 'get',
+    headers: buildSduiRequestHeaders(config.headers || {}),
+    validateStatus: () => true,
+    ...config
+  });
+  return response.data;
+}
+
+/** 音频录音会话（静默查询，40400 视为无会话） */
+export function getDebugAudioRecordSession(deviceId) {
+  return getSduiRaw(`${BASE}/debug/${deviceId}/sessions/audio-record`);
+}
+
+/** 设备活跃会话列表（静默查询） */
+export function getDebugSessions(deviceId) {
+  return getSduiRaw(`${BASE}/debug/${deviceId}/sessions`);
+}
+
+/** 最近一次录音产物元数据（静默查询，40400 视为无产物） */
+export function getDebugAudioRecordArtifact(deviceId) {
+  return getSduiRaw(`${BASE}/debug/${deviceId}/artifacts/audio-record-latest`);
+}
+
+export function buildDebugAudioRecordArtifactBlobUrl(deviceId, version = Date.now()) {
+  return `${buildSduiStreamUrl(`${BASE}/debug/${deviceId}/artifacts/audio-record-latest/blob`)}?t=${version}`;
 }
 
 /** 5.8 Section 推送 (preset / custom / auto-rotate) */
@@ -149,6 +179,28 @@ export function getDebugSectionState(deviceId) {
 /** 5.8.3 清空 Section workspace */
 export function clearDebugSectionState(deviceId) {
   return request({ url: `${BASE}/debug/${deviceId}/section/state`, method: 'delete' });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Board capability catalog
+// ═══════════════════════════════════════════════════════════════════
+
+export function getBoardTypes() {
+  return request({ url: `${BASE}/board-types`, method: 'get' });
+}
+
+export function getBoardTypeSections(board) {
+  return request({ url: `${BASE}/board-types/${encodeURIComponent(board)}/sections`, method: 'get' });
+}
+
+/** 某板卡的可用事件（触发器候选） */
+export function getBoardTypeEvents(board) {
+  return request({ url: `${BASE}/board-types/${encodeURIComponent(board)}/events`, method: 'get' });
+}
+
+/** 全局事件目录（编辑器用） */
+export function getEventCatalog() {
+  return request({ url: `${BASE}/events/catalog`, method: 'get' });
 }
 
 // ═══════════════════════════════════════════════════════════════════

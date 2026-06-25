@@ -47,9 +47,9 @@
           >
             <el-option
               v-for="dt in deviceTypes"
-              :key="dt.key || dt.board"
-              :label="`${dt.label || dt.board || dt.key} (${dt.deviceCount || 0})`"
-              :value="dt.board || dt.key"
+              :key="dt.board"
+              :label="`${dt.label || dt.board} (${dt.deviceCount || 0})`"
+              :value="dt.board"
             />
           </el-select>
 

@@ -34,19 +34,10 @@
       </div>
     </section>
 
-    <section class="summary-grid">
-      <article v-for="item in summaryCards" :key="item.label" class="summary-card">
-        <span>{{ item.label }}</span>
-        <strong>{{ item.value }}</strong>
-        <small>{{ item.help }}</small>
-      </article>
-    </section>
-
     <el-card shadow="never" class="tabs-card">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="命令调试" name="command" />
         <el-tab-pane label="Section 调试" name="section" />
-        <el-tab-pane label="事件观测" name="event" />
       </el-tabs>
 
       <template v-if="selectedDeviceId">
@@ -56,6 +47,7 @@
           :loading="commandLoading"
           :catalog="commandCatalog"
           :timeline="commandTimeline"
+          :audio-record-state="audioRecordState"
           :selected-detail="selectedCommandDetail"
           @refresh="loadCommandData"
           @record-created="upsertCommandRecord"
@@ -67,12 +59,9 @@
           v-else-if="activeTab === 'section'"
           ref="sectionPanelRef"
           :device-id="selectedDeviceId"
-          @summary-change="sectionSummary = $event"
-        />
-
-        <EventObserverPanel
-          v-else
+          :board="selectedDevice?.board || ''"
           :events="deviceEvents"
+          :event-connected="eventConnected"
         />
       </template>
 
@@ -82,30 +71,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
+import { nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
+  getDebugAudioRecordArtifact,
+  getDebugAudioRecordSession,
   getDebugCommandDetail,
   getDebugCommandHistory,
   getDebugCommandsSchema
 } from '@/api/sdui';
 import CommandDebugPanel from './components/CommandDebugPanel.vue';
-import EventObserverPanel from './components/EventObserverPanel.vue';
 import SectionDebugPanel from './components/SectionDebugPanel.vue';
-import { normalizeCommandCatalog, normalizeCommandHistory, normalizeCommandHistoryItem } from './normalize';
+import {
+  applyAudioRecordArtifact,
+  applyAudioRecordSession,
+  createInitialAudioRecordState,
+  normalizeAudioRecordArtifact,
+  normalizeAudioRecordSession,
+  normalizeCommandCatalog,
+  normalizeCommandHistory,
+  normalizeCommandHistoryItem,
+  reduceAudioRecordState
+} from './normalize';
 import { useDebugDeviceContext } from './composables/useDebugDeviceContext';
 import { useDebugStreams } from './composables/useDebugStreams';
-import type { DebugCommandCatalog, DebugCommandHistoryItem, DebugEventStreamItem } from './types';
+import type {
+  DebugAudioRecordState,
+  DebugCommandCatalog,
+  DebugCommandHistoryItem,
+  DebugEventStreamItem
+} from './types';
 
-const activeTab = ref<'command' | 'section' | 'event'>('command');
+const activeTab = ref<'command' | 'section'>('command');
 const pageLoading = ref(false);
 const commandLoading = ref(false);
 const sectionPanelRef = ref<(ComponentPublicInstance & { refreshData: () => Promise<void> }) | null>(null);
-const sectionSummary = ref({
-  sectionTypeCount: 0,
-  pageCount: 0,
-  activeSectionCount: 0
-});
 
 const {
   devices,
@@ -116,7 +116,6 @@ const {
 } = useDebugDeviceContext();
 
 const {
-  commandConnected,
   eventConnected,
   startCommandStream,
   startEventStream,
@@ -131,26 +130,7 @@ const commandCatalog = ref<DebugCommandCatalog>({
 const commandTimeline = ref<DebugCommandHistoryItem[]>([]);
 const selectedCommandDetail = ref<DebugCommandHistoryItem | null>(null);
 const deviceEvents = ref<DebugEventStreamItem[]>([]);
-
-const summaryCards = computed(() => [
-  {
-    label: '命令目录',
-    value: commandCatalog.value.deviceCommands.length,
-    help: `${commandCatalog.value.deviceCommands.length} 条可用命令`
-  },
-  {
-    label: '命令回执流',
-    value: commandConnected.value ? '已连接' : '未连接',
-    help: `最近 ${commandTimeline.value.length} 条命令`
-  },
-  {
-    label: activeTab.value === 'section' ? 'Section 类型' : '事件观测流',
-    value: activeTab.value === 'section' ? sectionSummary.value.sectionTypeCount : (eventConnected.value ? '已连接' : '未连接'),
-    help: activeTab.value === 'section'
-      ? `${sectionSummary.value.pageCount} 个 page / 当前 ${sectionSummary.value.activeSectionCount} 个 section`
-      : `最近 ${deviceEvents.value.length} 条事件`
-  }
-]);
+const audioRecordState = ref<DebugAudioRecordState>(createInitialAudioRecordState());
 
 watch(
   () => selectedDeviceId.value,
@@ -158,11 +138,15 @@ watch(
     stopAllStreams();
     resetDeviceState();
     if (!deviceId) return;
-    await refreshActiveData();
-    startCommandStream(deviceId, upsertCommandRecord);
     startEventStream(deviceId, (item) => {
+      audioRecordState.value = reduceAudioRecordState(audioRecordState.value, item);
+      if (item.eventName === 'audio.record.data' || item.eventName === 'audio.stt.result') {
+        void loadAudioRecordState(deviceId);
+      }
       deviceEvents.value = [item, ...deviceEvents.value].slice(0, 100);
     });
+    startCommandStream(deviceId, upsertCommandRecord);
+    await refreshActiveData();
   }
 );
 
@@ -186,12 +170,8 @@ function resetDeviceState() {
   commandCatalog.value = { deviceId: '', online: false, deviceCommands: [] };
   commandTimeline.value = [];
   deviceEvents.value = [];
+  audioRecordState.value = createInitialAudioRecordState();
   selectedCommandDetail.value = null;
-  sectionSummary.value = {
-    sectionTypeCount: 0,
-    pageCount: 0,
-    activeSectionCount: 0
-  };
 }
 
 async function refreshActiveData() {
@@ -199,7 +179,10 @@ async function refreshActiveData() {
   pageLoading.value = true;
   try {
     if (activeTab.value === 'command') {
-      await loadCommandData();
+      await Promise.all([
+        loadCommandData(),
+        loadAudioRecordState(selectedDeviceId.value)
+      ]);
     } else if (activeTab.value === 'section') {
       await nextTick();
       await sectionPanelRef.value?.refreshData();
@@ -228,6 +211,42 @@ async function loadCommandData() {
   }
 }
 
+async function loadAudioRecordState(deviceId: string) {
+  try {
+    const sessionResponse = await getDebugAudioRecordSession(deviceId);
+    if (sessionResponse?.code === 20000) {
+      audioRecordState.value = applyAudioRecordSession(
+        audioRecordState.value,
+        normalizeAudioRecordSession(sessionResponse)
+      );
+      return;
+    }
+
+    if (sessionResponse?.code && sessionResponse.code !== 40400) {
+      throw new Error(sessionResponse.message || '加载录音会话失败');
+    }
+
+    audioRecordState.value = applyAudioRecordSession(audioRecordState.value, null);
+    const artifactResponse = await getDebugAudioRecordArtifact(deviceId);
+
+    if (artifactResponse?.code === 20000) {
+      audioRecordState.value = applyAudioRecordArtifact(
+        audioRecordState.value,
+        normalizeAudioRecordArtifact(artifactResponse)
+      );
+      return;
+    }
+
+    if (artifactResponse?.code && artifactResponse.code !== 40400) {
+      throw new Error(artifactResponse.message || '加载录音结果失败');
+    }
+
+    audioRecordState.value = applyAudioRecordArtifact(audioRecordState.value, null);
+  } catch {
+    ElMessage.error('加载音频采集状态失败');
+  }
+}
+
 async function fetchCommandDetail(cmdId: string) {
   if (!selectedDeviceId.value) return;
   try {
@@ -242,9 +261,24 @@ function upsertCommandRecord(item: DebugCommandHistoryItem) {
   const next = [...commandTimeline.value];
   const index = next.findIndex((row) => row.cmdId === item.cmdId);
   if (index >= 0) {
-    next[index] = { ...next[index], ...item };
+    const current = next[index];
+    next[index] = {
+      ...current,
+      ...item,
+      action: item.action || current.action,
+      phase: item.phase || current.phase,
+      params: Object.keys(item.params).length ? item.params : current.params,
+      dispatchStatus: item.dispatchStatus || current.dispatchStatus,
+      ackStatus: item.ackStatus !== 'PENDING' || !current.ackStatus ? item.ackStatus : current.ackStatus,
+      reason: item.reason || current.reason,
+      createdAt: item.createdAt || current.createdAt,
+      ackAt: item.ackAt || current.ackAt
+    };
   } else {
-    next.unshift(item);
+    next.unshift({
+      ...item,
+      createdAt: item.createdAt || new Date().toISOString()
+    });
   }
   commandTimeline.value = next
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -295,43 +329,8 @@ function upsertCommandRecord(item: DebugCommandHistoryItem) {
   max-width: 720px;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-card {
-  padding: 18px;
-  border-radius: 18px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.summary-card strong {
-  font-size: 24px;
-}
-
-.summary-card small {
-  color: #6b7280;
-}
-
 .tabs-card {
   border-radius: 24px;
 }
 
-@media (max-width: 960px) {
-  .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

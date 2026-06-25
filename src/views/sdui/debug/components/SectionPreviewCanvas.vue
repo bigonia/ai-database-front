@@ -1,10 +1,10 @@
 <template>
-  <el-card shadow="never" class="panel-card">
+  <el-card shadow="never" class="panel-card preview-panel">
     <template #header>
       <div class="panel-header">
         <div>
           <div class="panel-title">Section Preview</div>
-          <div class="panel-subtitle">渲染来自 workspaceState 的 active page，不依赖本地草稿推断。</div>
+          <div class="panel-subtitle">渲染后端当前已推送页面，仅用于展示终端实际内容。</div>
         </div>
         <el-tag size="small">{{ page?.layout || 'no-page' }}</el-tag>
       </div>
@@ -16,7 +16,7 @@
           <article
             v-if="section.sectionType === 'hero_section'"
             class="preview-card hero-card"
-            :class="toneClass(section.fields.tone)"
+            :class="[toneClass(section.fields.tone), eventActiveClass(section.sectionId)]"
           >
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="hero-value">{{ section.fields.value || '--' }}</div>
@@ -25,7 +25,7 @@
             <el-progress :percentage="toProgress(section.fields.progress)" :show-text="false" />
           </article>
 
-          <article v-else-if="section.sectionType === 'metric_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'metric_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="metric-grid">
               <div v-for="(item, index) in asArray(section.fields.metrics)" :key="index" class="metric-item">
@@ -35,7 +35,7 @@
             </div>
           </article>
 
-          <article v-else-if="section.sectionType === 'chart_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'chart_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <div class="chart-line">
@@ -49,92 +49,93 @@
             <div class="muted">Progress {{ toProgress(section.fields.progress) }}%</div>
           </article>
 
-          <article v-else-if="section.sectionType === 'progress_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'progress_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <el-progress :percentage="toProgress(section.fields.progress)" />
             <div class="muted">{{ section.fields.progressText || `${toProgress(section.fields.progress)}%` }}</div>
           </article>
 
-          <article v-else-if="section.sectionType === 'text_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'text_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <p class="body-copy">{{ section.fields.body || '暂无内容' }}</p>
           </article>
 
-          <article v-else-if="section.sectionType === 'timer_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'timer_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <div class="hero-value">{{ formatElapsed(asRecord(section.fields.timer).elapsedMs) }}</div>
             <div class="muted">{{ asRecord(section.fields.timer).running ? '运行中' : '已暂停' }}</div>
           </article>
 
-          <article v-else-if="section.sectionType === 'image_section'" class="preview-card image-card">
+          <article v-else-if="section.sectionType === 'image_section'" class="preview-card image-card" :class="eventActiveClass(section.sectionId)">
             <div class="image-icon">{{ resolveIcon(section.fields.iconSrc || section.fields.iconSymbol) }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <div class="muted">{{ section.fields.subtitle || '图标主导信息块' }}</div>
           </article>
 
-          <article v-else-if="section.sectionType === 'overlay_section'" class="preview-card overlay-card" :class="toneClass(section.fields.tone)">
+          <article
+            v-else-if="section.sectionType === 'overlay_section'"
+            class="preview-card overlay-card"
+            :class="[toneClass(section.fields.tone), eventActiveClass(section.sectionId)]"
+          >
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ section.fields.title || getSectionSemantic(section.sectionType).title }}</strong>
             <p class="body-copy">{{ section.fields.body || '暂无提示内容' }}</p>
             <div class="toolbar-group">
               <el-tag size="small">unread {{ Number(section.fields.unreadCount || 0) }}</el-tag>
-              <el-button size="small" type="primary" @click="emitPreview('overlay.confirm', section, { autoHideMs: Number(section.fields.autoHideMs || 0) })">
+              <el-button size="small" type="primary" disabled>
                 确认
               </el-button>
             </div>
           </article>
 
-          <article v-else-if="section.sectionType === 'action_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'action_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="action-grid">
               <el-button
                 v-for="(action, index) in asArray(section.fields.actions)"
                 :key="index"
                 :type="buttonTone(asRecord(action).tone)"
-                :disabled="asRecord(action).enabled === false"
-                @click="emitPreview('action.click', section, { buttonId: asRecord(action).id, label: asRecord(action).label })"
+                disabled
               >
                 {{ asRecord(action).label || asRecord(action).id || `action_${index + 1}` }}
               </el-button>
             </div>
           </article>
 
-          <article v-else-if="section.sectionType === 'toggle_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'toggle_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="stack-gap">
               <div v-for="(option, index) in asArray(section.fields.options)" :key="index" class="toggle-row">
                 <span>{{ asRecord(option).label || asRecord(option).id || `option_${index + 1}` }}</span>
                 <el-switch
                   :model-value="Boolean(asRecord(option).active)"
-                  @change="emitPreview('toggle.change', section, { optionId: asRecord(option).id, active: Boolean($event) })"
+                  disabled
                 />
               </div>
             </div>
           </article>
 
-          <article v-else-if="section.sectionType === 'list_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'list_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="stack-gap">
-              <button
+              <div
                 v-for="(item, index) in asArray(section.fields.items)"
                 :key="index"
                 class="list-item"
-                type="button"
-                @click="emitPreview('list.select', section, { itemId: asRecord(item).id, title: asRecord(item).title })"
               >
                 <div>
                   <strong>{{ asRecord(item).title || `item_${index + 1}` }}</strong>
                   <div class="muted">{{ asRecord(item).subtitle || '无副标题' }}</div>
                 </div>
                 <span>{{ resolveIcon(asRecord(item).iconSrc) }}</span>
-              </button>
+              </div>
             </div>
           </article>
 
-          <article v-else-if="section.sectionType === 'nav_section'" class="preview-card">
+          <article v-else-if="section.sectionType === 'nav_section'" class="preview-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <div class="nav-tabs">
               <span
@@ -148,7 +149,7 @@
             </div>
           </article>
 
-          <article v-else class="preview-card fallback-card">
+          <article v-else class="preview-card fallback-card" :class="eventActiveClass(section.sectionId)">
             <div class="section-kicker">{{ section.sectionId }}</div>
             <strong>{{ getSectionSemantic(section.sectionType).title }}</strong>
             <div class="muted">协议未实现，以下展示原始字段。</div>
@@ -158,20 +159,17 @@
       </div>
     </div>
 
-    <el-empty v-else description="当前 workspace 还没有 active page" :image-size="56" />
+    <el-empty v-else description="尚未向终端推送 Section 页面" :image-size="56" />
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { getSectionSemantic } from '../sectionSemantics';
-import type { DebugSectionItem, DebugSectionPage } from '../types';
+import type { DebugSectionPage } from '../types';
 
 const props = defineProps<{
   page: DebugSectionPage | null;
-}>();
-
-const emit = defineEmits<{
-  (event: 'preview-event', payload: { eventName: string; pageId: string; sectionId: string; payload: Record<string, unknown> }): void;
+  activeSectionId?: string;
 }>();
 
 function asArray(value: unknown) {
@@ -227,17 +225,24 @@ function buttonTone(value: unknown) {
   return 'primary';
 }
 
-function emitPreview(eventName: string, section: DebugSectionItem, payload: Record<string, unknown>) {
-  emit('preview-event', {
-    eventName,
-    pageId: props.page?.pageId || '',
-    sectionId: section.sectionId,
-    payload
-  });
+function eventActiveClass(sectionId: string) {
+  return sectionId && sectionId === props.activeSectionId ? 'is-event-active' : '';
 }
 </script>
 
 <style scoped>
+.preview-panel {
+  border-radius: 14px;
+}
+
+.preview-panel :deep(.el-card__header) {
+  padding: 16px 18px 14px;
+}
+
+.preview-panel :deep(.el-card__body) {
+  padding: 14px;
+}
+
 .panel-header,
 .toolbar-group,
 .toggle-row {
@@ -259,18 +264,26 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
   color: #6b7280;
 }
 
+.panel-subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .preview-shell {
-  padding: 8px;
-  border-radius: 24px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
   background:
-    radial-gradient(circle at top, rgba(14, 165, 233, 0.12), transparent 36%),
+    radial-gradient(circle at top, rgba(14, 165, 233, 0.10), transparent 36%),
     linear-gradient(180deg, #eff6ff, #ffffff 40%, #f8fafc);
 }
 
 .preview-stage {
-  min-height: 420px;
+  min-height: 360px;
   display: grid;
-  gap: 14px;
+  align-content: start;
+  gap: 8px;
 }
 
 .preview-stage.layout-horizontal_pages {
@@ -280,7 +293,7 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
 }
 
 .preview-stage.layout-fixed_single {
-  max-height: 540px;
+  max-height: 360px;
   overflow: hidden;
 }
 
@@ -290,14 +303,21 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
 }
 
 .preview-card {
-  padding: 18px;
-  border-radius: 22px;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid #dbe4f0;
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.preview-card.is-event-active {
+  border-color: #409eff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.16), 0 10px 24px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
 }
 
 .hero-card.tone-primary,
@@ -328,12 +348,12 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
 }
 
 .hero-value {
-  font-size: 38px;
+  font-size: 28px;
   line-height: 1;
 }
 
 .hero-label {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -353,10 +373,10 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
 }
 
 .chart-line {
-  height: 96px;
+  height: 64px;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chart-bar {
@@ -378,15 +398,15 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
 }
 
 .image-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   background: #eff6ff;
   color: #1d4ed8;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 34px;
+  font-size: 24px;
 }
 
 .overlay-card {
@@ -411,7 +431,6 @@ function emitPreview(eventName: string, section: DebugSectionItem, payload: Reco
   justify-content: space-between;
   gap: 12px;
   text-align: left;
-  cursor: pointer;
 }
 
 .nav-tab.active {

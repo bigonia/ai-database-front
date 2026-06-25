@@ -79,6 +79,20 @@ const REGISTRY: CommandRegistryEntry[] = [
       text: { required: true, default: '' }
     }
   },
+  {
+    command: 'audio.record.start',
+    displayName: '开始录制',
+    group: '音频',
+    description: '开始采集麦克风音频并等待后续停止指令',
+    paramMeta: {}
+  },
+  {
+    command: 'audio.record.stop',
+    displayName: '停止录制',
+    group: '音频',
+    description: '停止采集并触发上传、识别与结果生成',
+    paramMeta: {}
+  },
 
   // ── RGB 灯光 ──
   {
@@ -101,9 +115,9 @@ const REGISTRY: CommandRegistryEntry[] = [
       r: { required: true, min: 0, max: 255, default: 255 },
       g: { required: true, min: 0, max: 255, default: 0 },
       b: { required: true, min: 0, max: 255, default: 0 },
-      brightness: { required: false, min: 0, max: 255, default: 120 },
-      period_ms: { required: false, min: 200, max: 5000, default: 1200 },
-      step_ms: { required: false, min: 10, max: 500, default: 40 }
+      brightness: { required: false, min: 0, max: 255, default: 100 },
+      period_ms: { required: false, min: 200, max: 5000, default: 3000 },
+      step_ms: { required: false, min: 10, max: 500, default: 10 }
     }
   },
   {

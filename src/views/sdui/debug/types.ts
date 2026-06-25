@@ -86,6 +86,7 @@ export interface DebugCommandHistoryItem {
   deviceId: string;
   command: string;
   action: string;
+  phase: 'dispatch' | 'ack' | '';
   params: Record<string, unknown>;
   dispatchStatus: string;
   ackStatus: string;
@@ -136,16 +137,76 @@ export interface DebugCommandStats {
 // ═══════════════════════════════════════════════════════════
 
 export interface DebugEventStreamItem {
+  eventId: string;
+  displayName: string;
+  description: string;
   eventName: string;
   ts: number | string | null;
-  nodeId: string;
-  raw: Record<string, unknown> | string;
+  deviceId: string;
+  category: 'physical_input' | 'media' | 'unknown';
+  inputSource: {
+    type?: string;
+    name?: string;
+    displayName?: string;
+    nodeId?: string;
+  } | null;
+  section: {
+    sectionId: string;
+    pageId: string;
+    sectionType: string;
+    sectionDisplayName: string;
+  } | null;
+  value?: unknown;
+  raw: Record<string, unknown>;
+}
+
+export type DebugAudioRecordPhase = 'idle' | 'starting' | 'recording' | 'stopping' | 'processing' | 'done';
+
+export interface DebugAudioRecordSession {
+  sessionId: string;
+  deviceId: string;
+  type: string;
+  status: string;
+  startedAt: number | null;
+  startedAtIso: string;
+  elapsedMs: number;
+  pcmBytes: number;
+  chunkCount: number;
+}
+
+export interface DebugAudioRecordArtifact {
+  deviceId: string;
+  artifactId: string;
+  type: string;
+  mimeType: string;
+  blobBytes: number;
+  createdAt: number | null;
+  createdAtIso: string;
+  sttText: string;
+  pcmSize: number;
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+  durationMs: number;
+}
+
+export interface DebugAudioRecordState {
+  phase: DebugAudioRecordPhase;
+  bytesReceived: number;
+  chunkCount: number;
+  transcript: string;
+  startedAt: number | null;
+  durationMs: number;
+  session: DebugAudioRecordSession | null;
+  artifact: DebugAudioRecordArtifact | null;
+  resultVersion: number;
 }
 
 export interface DebugDeviceOption {
   deviceId: string;
   name: string;
   status: string;
+  board: string;
 }
 
 export interface StreamStatusState {
@@ -160,6 +221,12 @@ export interface StreamStatusState {
 export interface DebugSectionDisplayField {
   name: string;
   type: string;
+  label: string;
+  default: unknown;
+  required: boolean;
+  options: string[];
+  min?: number;
+  max?: number;
   children: DebugSectionDisplayField[];
 }
 
@@ -196,11 +263,9 @@ export interface DebugSectionPage {
   updatedAt?: number | null;
 }
 
-export interface DebugSectionWorkspaceState {
+export interface DebugSectionState {
   deviceId: string;
-  online: boolean;
-  activePageId: string | null;
-  pages: DebugSectionPage[];
+  page: DebugSectionPage | null;
 }
 
 export interface DebugSectionPatch {
@@ -208,12 +273,4 @@ export interface DebugSectionPatch {
   op: 'add' | 'update' | 'remove';
   sectionType?: string;
   fields?: Record<string, unknown>;
-}
-
-export interface DebugSectionPreviewEvent {
-  eventName: string;
-  pageId: string;
-  sectionId: string;
-  payload: Record<string, unknown>;
-  createdAt: string;
 }

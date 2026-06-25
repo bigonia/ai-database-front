@@ -1,65 +1,36 @@
 <template>
   <div class="section-panel">
-    <div class="toolbar-row">
-      <div class="toolbar-group">
-        <el-tag :type="editorMeta.online ? 'success' : 'info'" round>
-          {{ editorMeta.online ? '设备在线' : '设备离线' }}
-        </el-tag>
-        <el-tag effect="plain">renderMode {{ editorMeta.renderMode || '-' }}</el-tag>
-        <el-tag effect="plain">sizeClass {{ editorMeta.sizeClass || '-' }}</el-tag>
-      </div>
-      <div class="toolbar-group">
-        <el-button :loading="loadingState === 'refresh'" @click="refreshData">刷新</el-button>
-        <el-button type="danger" plain :loading="loadingState === 'clear'" @click="clearWorkspace">清空 workspace</el-button>
-      </div>
-    </div>
-
     <div class="section-grid">
-      <div class="stack-gap">
+      <main class="editor-column">
         <SectionWorkspaceEditor
           :editor-meta="editorMeta"
           :draft="editorDraft"
-          :workspace-page="activeWorkspacePage"
+          :workspace-page="persistedPage"
           :submitting="editorSubmittingState"
+          :refreshing="loadingState === 'refresh'"
           @change-draft="editorDraft = $event"
           @save-page="savePage"
           @apply-patch="applyPatch"
           @remove-section="removeSection"
+          @clear-sections="clearSections"
+          @refresh="refreshData"
+          @save-page-settings="savePageSettings"
         />
-      </div>
+      </main>
 
-      <div class="stack-gap">
-        <el-card shadow="never" class="panel-card">
-          <template #header>
-            <div class="panel-header">
-              <div>
-                <div class="panel-title">Workspace 状态</div>
-                <div class="panel-subtitle">真实渲染源来自后端维护的 debug workspace。</div>
-              </div>
-              <el-tag size="small">{{ workspaceState.activePageId || 'no-active-page' }}</el-tag>
-            </div>
-          </template>
-
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="Pages">{{ workspaceState.pages.length }}</el-descriptions-item>
-            <el-descriptions-item label="Active Page">{{ activeWorkspacePage?.pageId || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Sections">{{ activeWorkspacePage?.sections.length || 0 }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
-
-        <SectionPreviewCanvas :page="activeWorkspacePage" @preview-event="handlePreviewEvent" />
-        <SectionEventLog :events="previewEvents" @clear="previewEvents = []" />
-      </div>
+      <aside class="preview-column">
+        <SectionPreviewCanvas :page="persistedPage" :active-section-id="activeEventSectionId" />
+        <SectionEventTimeline :events="visibleSectionEvents" :connected="eventConnected" />
+      </aside>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  clearDebugSectionState,
-  getDebugSectionEditor,
+  getBoardTypeSections,
   getDebugSectionState,
   patchDebugSection,
   sendDebugSection
@@ -69,20 +40,18 @@ import {
   cloneSectionPage,
   createDraftKey,
   normalizeSectionEditor,
-  normalizeSectionPreviewEvent,
-  normalizeSectionWorkspaceState
+  normalizeSectionState
 } from '../normalize';
-import type { DebugSectionEditor, DebugSectionPage, DebugSectionPreviewEvent, DebugSectionWorkspaceState } from '../types';
-import SectionEventLog from './SectionEventLog.vue';
+import type { DebugEventStreamItem, DebugSectionEditor, DebugSectionPage, DebugSectionState } from '../types';
+import SectionEventTimeline from './SectionEventTimeline.vue';
 import SectionPreviewCanvas from './SectionPreviewCanvas.vue';
 import SectionWorkspaceEditor from './SectionWorkspaceEditor.vue';
 
 const props = defineProps<{
   deviceId: string;
-}>();
-
-const emit = defineEmits<{
-  (event: 'summary-change', payload: { sectionTypeCount: number; pageCount: number; activeSectionCount: number }): void;
+  board: string;
+  events: DebugEventStreamItem[];
+  eventConnected: boolean;
 }>();
 
 const editorMeta = ref<DebugSectionEditor>({
@@ -93,11 +62,9 @@ const editorMeta = ref<DebugSectionEditor>({
   layouts: [],
   sectionTypes: []
 });
-const workspaceState = ref<DebugSectionWorkspaceState>({
+const sectionState = ref<DebugSectionState>({
   deviceId: '',
-  online: false,
-  activePageId: null,
-  pages: []
+  page: null
 });
 const editorDraft = ref<DebugSectionPage>({
   pageId: '',
@@ -106,31 +73,35 @@ const editorDraft = ref<DebugSectionPage>({
   autoScrollMs: 0,
   sections: []
 });
-const previewEvents = ref<DebugSectionPreviewEvent[]>([]);
-const loadingState = ref<'' | 'refresh' | 'clear'>('');
+const loadingState = ref<'' | 'refresh'>('');
 const editorSubmittingState = ref<'' | 'save' | 'patch' | 'remove'>('');
 
-const activeWorkspacePage = computed(() => {
-  if (!workspaceState.value.activePageId) return workspaceState.value.pages[0] || null;
-  return workspaceState.value.pages.find((item) => item.pageId === workspaceState.value.activePageId) || workspaceState.value.pages[0] || null;
+const persistedPage = computed(() => sectionState.value.page);
+const visibleSectionEvents = computed(() => {
+  const page = persistedPage.value;
+  return props.events.filter((event) => {
+    if (event.category === 'physical_input') return true;
+    if (!event.section && event.inputSource?.type !== 'section') return false;
+    if (!event.section || !page) return false;
+    return event.section.pageId === page.pageId &&
+      page.sections.some((section) => section.sectionId === event.section?.sectionId);
+  }).slice(0, 50);
 });
+const activeEventSectionId = ref('');
+let eventHighlightTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(
-  [editorMeta, workspaceState],
   () => {
-    emit('summary-change', {
-      sectionTypeCount: editorMeta.value.sectionTypes.length,
-      pageCount: workspaceState.value.pages.length,
-      activeSectionCount: activeWorkspacePage.value?.sections.length || 0
-    });
+    const event = visibleSectionEvents.value.find((item) => item.section);
+    return [event?.section?.sectionId || '', event?.ts || ''] as const;
   },
-  { immediate: true, deep: true }
-);
-
-watch(
-  () => props.deviceId,
-  () => {
-    previewEvents.value = [];
+  ([sectionId]) => {
+    if (eventHighlightTimer) clearTimeout(eventHighlightTimer);
+    activeEventSectionId.value = sectionId;
+    if (!activeEventSectionId.value) return;
+    eventHighlightTimer = setTimeout(() => {
+      activeEventSectionId.value = '';
+    }, 2200);
   }
 );
 
@@ -139,21 +110,21 @@ async function refreshData() {
   loadingState.value = 'refresh';
   try {
     const [editorResponse, stateResponse] = await Promise.all([
-      getDebugSectionEditor(props.deviceId),
+      getBoardTypeSections(props.board),
       getDebugSectionState(props.deviceId)
     ]);
     editorMeta.value = normalizeSectionEditor(editorResponse);
-    workspaceState.value = normalizeSectionWorkspaceState(stateResponse);
+    sectionState.value = normalizeSectionState(stateResponse);
     syncDraftFromWorkspace();
-  } catch (error: any) {
-    ElMessage.error(error?.message || '加载 Section 调试数据失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载 Section 调试数据失败'));
   } finally {
     loadingState.value = '';
   }
 }
 
 function syncDraftFromWorkspace() {
-  editorDraft.value = cloneSectionPage(activeWorkspacePage.value);
+  editorDraft.value = cloneSectionPage(persistedPage.value);
   if (!editorDraft.value.layout) {
     editorDraft.value.layout = editorMeta.value.layouts[0] || 'vertical_scroll';
   }
@@ -176,7 +147,6 @@ async function savePage() {
   editorSubmittingState.value = 'save';
   try {
     await sendDebugSection(props.deviceId, {
-      ...(editorDraft.value.pageId ? { pageId: editorDraft.value.pageId } : {}),
       layout: editorDraft.value.layout,
       autoScroll: editorDraft.value.autoScroll,
       autoScrollMs: editorDraft.value.autoScrollMs,
@@ -188,9 +158,38 @@ async function savePage() {
     });
     ElMessage.success('页面已保存');
     await refreshData();
-  } catch (error: any) {
-    ElMessage.error(error?.message || '整页保存失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '整页保存失败'));
     await refreshStateOnly();
+  } finally {
+    editorSubmittingState.value = '';
+  }
+}
+
+async function savePageSettings(settings: Pick<DebugSectionPage, 'layout' | 'autoScroll' | 'autoScrollMs'>) {
+  const currentPage = persistedPage.value;
+  if (!currentPage?.sections.length) {
+    ElMessage.warning('请先添加并保存至少一个 Section');
+    return;
+  }
+
+  editorSubmittingState.value = 'save';
+  try {
+    await sendDebugSection(props.deviceId, {
+      ...settings,
+      sections: currentPage.sections.map((item) => ({
+        ...(item.sectionId ? { sectionId: item.sectionId } : {}),
+        sectionType: item.sectionType,
+        fields: item.fields
+      }))
+    });
+    sectionState.value = {
+      ...sectionState.value,
+      page: { ...currentPage, ...settings }
+    };
+    ElMessage.success('页面设置已保存');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '页面设置保存失败'));
   } finally {
     editorSubmittingState.value = '';
   }
@@ -199,17 +198,20 @@ async function savePage() {
 async function applyPatch(sectionRef: string, op: 'add' | 'update') {
   const section = editorDraft.value.sections.find((item) => (item.draftKey || item.sectionId) === sectionRef);
   if (!section) return;
+  if (!persistedPage.value) {
+    ElMessage.warning('请先整页保存，再进行增量更新');
+    return;
+  }
   editorSubmittingState.value = 'patch';
   try {
     const patchPayload = buildSingleSectionPatch(section, op);
     await patchDebugSection(props.deviceId, {
-      ...((op === 'update' || op === 'remove') && editorDraft.value.pageId ? { pageId: editorDraft.value.pageId } : {}),
       patches: [patchPayload]
     });
-    ElMessage.success(op === 'add' ? 'Section 已添加到当前 active page' : 'Patch 已应用');
+    ElMessage.success(op === 'add' ? 'Section 已添加到当前页面' : 'Patch 已应用');
     await refreshData();
-  } catch (error: any) {
-    ElMessage.error(error?.message || 'Patch 失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, 'Patch 失败'));
     await refreshStateOnly();
   } finally {
     editorSubmittingState.value = '';
@@ -219,7 +221,7 @@ async function applyPatch(sectionRef: string, op: 'add' | 'update') {
 async function removeSection(sectionRef: string) {
   const section = editorDraft.value.sections.find((item) => (item.draftKey || item.sectionId) === sectionRef);
   if (!section) return;
-  const persisted = !!section.sectionId && !!activeWorkspacePage.value?.sections.some((item) => item.sectionId === section.sectionId);
+  const persisted = !!section.sectionId && !!persistedPage.value?.sections.some((item) => item.sectionId === section.sectionId);
   if (!persisted) {
     editorDraft.value = {
       ...editorDraft.value,
@@ -239,54 +241,58 @@ async function removeSection(sectionRef: string) {
   editorSubmittingState.value = 'remove';
   try {
     await patchDebugSection(props.deviceId, {
-      ...(editorDraft.value.pageId ? { pageId: editorDraft.value.pageId } : {}),
       patches: [buildSingleSectionPatch(section, 'remove')]
     });
     ElMessage.success('Section 已删除');
     await refreshData();
-  } catch (error: any) {
-    ElMessage.error(error?.message || '删除 section 失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '删除 section 失败'));
     await refreshStateOnly();
   } finally {
     editorSubmittingState.value = '';
   }
 }
 
-async function clearWorkspace() {
+async function clearSections() {
+  if (!editorDraft.value.sections.length) return;
   try {
-    await ElMessageBox.confirm('确认清空当前设备的 Section workspace？', '清空确认', {
+    await ElMessageBox.confirm('确认清除“已添加内容”中的全部 Section？', '清除确认', {
       type: 'warning'
     });
   } catch {
     return;
   }
 
-  loadingState.value = 'clear';
-  try {
-    await clearDebugSectionState(props.deviceId);
-    workspaceState.value = {
-      deviceId: props.deviceId,
-      online: editorMeta.value.online,
-      activePageId: null,
-      pages: []
+  const persistedSections = editorDraft.value.sections.filter(
+    (section) => !!section.sectionId && !!persistedPage.value?.sections.some((item) => item.sectionId === section.sectionId)
+  );
+  if (!persistedSections.length) {
+    editorDraft.value = {
+      ...editorDraft.value,
+      sections: []
     };
-    editorDraft.value = cloneSectionPage(null);
-    editorDraft.value.layout = editorMeta.value.layouts[0] || 'vertical_scroll';
-    editorDraft.value.sections = [];
-    previewEvents.value = [];
-    ElMessage.success('Workspace 已清空');
-  } catch (error: any) {
-    ElMessage.error(error?.message || '清空 workspace 失败');
+    return;
+  }
+
+  editorSubmittingState.value = 'remove';
+  try {
+    await patchDebugSection(props.deviceId, {
+      patches: persistedSections.map((section) => buildSingleSectionPatch(section, 'remove'))
+    });
+    ElMessage.success('全部 Section 已清除');
+    await refreshData();
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '清除全部 Section 失败'));
     await refreshStateOnly();
   } finally {
-    loadingState.value = '';
+    editorSubmittingState.value = '';
   }
 }
 
 async function refreshStateOnly() {
   try {
     const stateResponse = await getDebugSectionState(props.deviceId);
-    workspaceState.value = normalizeSectionWorkspaceState(stateResponse);
+    sectionState.value = normalizeSectionState(stateResponse);
     syncDraftFromWorkspace();
     editorDraft.value.sections = editorDraft.value.sections.map((item) => ({
       ...item,
@@ -297,53 +303,50 @@ async function refreshStateOnly() {
   }
 }
 
-function handlePreviewEvent(payload: { eventName: string; pageId: string; sectionId: string; payload: Record<string, unknown> }) {
-  previewEvents.value = [
-    normalizeSectionPreviewEvent(payload.eventName, payload.pageId, payload.sectionId, payload.payload),
-    ...previewEvents.value
-  ].slice(0, 100);
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 defineExpose({
   refreshData
 });
+
+onBeforeUnmount(() => {
+  if (eventHighlightTimer) clearTimeout(eventHighlightTimer);
+});
 </script>
 
 <style scoped>
-.section-panel,
-.stack-gap {
+.section-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .section-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-  gap: 16px;
+  grid-template-columns: minmax(620px, 1.55fr) minmax(360px, 0.8fr);
+  align-items: start;
+  gap: 14px;
 }
 
-.toolbar-row,
-.toolbar-group,
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+.editor-column,
+.preview-column {
+  min-width: 0;
 }
 
-.panel-title {
-  font-weight: 700;
+.preview-column {
+  position: sticky;
+  top: 12px;
 }
 
-.panel-subtitle {
-  color: #6b7280;
-}
-
-@media (max-width: 1080px) {
+@media (max-width: 1280px) {
   .section-grid {
     grid-template-columns: 1fr;
   }
+
+  .preview-column {
+    position: static;
+  }
 }
+
 </style>

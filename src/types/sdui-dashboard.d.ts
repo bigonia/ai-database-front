@@ -41,13 +41,10 @@ interface SduiDeviceListResponse {
   items: SduiDevice[];
 }
 
-// ── 3.3 设备类型 ──
+// ── 3.3 设备类型 / Board 类型 ──
 interface DeviceTypeInfo {
-  key: string;
   board: string;
   label: string;
-  labelSource: string;
-  hasVariants: boolean;
   inputEvents: string[];
   outputCommands: string[];
   sectionTypes: string[];
@@ -55,11 +52,6 @@ interface DeviceTypeInfo {
   onlineCount: number;
   exampleDeviceIds: string[];
   lastSeen: string | null;
-}
-
-interface DeviceTypesResponse {
-  types: DeviceTypeInfo[];
-  totalCount: number;
 }
 
 // ── 4.1 设备详情 ──

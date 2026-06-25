@@ -12,7 +12,17 @@
       "mcp__ide__getDiagnostics",
       "Skill(superpowers:systematic-debugging)",
       "Bash(Select-Object -First 30)",
-      "PowerShell(npx vite build --mode build_test 2>&1 | Select-Object -First 30)"
+      "PowerShell(npx vite build --mode build_test 2>&1 | Select-Object -First 30)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P -n)",
+      "Bash(git config *)",
+      "Bash(ssh-keygen -t ed25519 -C \"1533973672@qq.com\" -f ~/.ssh/id_ed25519 -N \"\")",
+      "Bash(git remote *)",
+      "Bash(npm run *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s http://172.16.8.239:8001/api/v1/sdui/board-types/ESP32-S3-LCD-0.85/sections)",
+      "Bash(git stash *)"
     ]
   }
 }

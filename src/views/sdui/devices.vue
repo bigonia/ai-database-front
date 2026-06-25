@@ -29,9 +29,9 @@
           <el-select v-model="filters.board" clearable filterable placeholder="硬件型号" style="width: 180px" @change="resetAndFetch">
             <el-option
               v-for="item in deviceTypes"
-              :key="item.key || item.board"
-              :label="`${item.label || item.board || item.key} (${item.deviceCount || 0})`"
-              :value="item.board || item.key"
+              :key="item.board"
+              :label="`${item.label || item.board} (${item.deviceCount || 0})`"
+              :value="item.board"
             />
           </el-select>
           <el-input v-model="filters.search" clearable placeholder="搜索设备名称或 ID" style="width: 240px" @clear="resetAndFetch" @keyup.enter="resetAndFetch" />
@@ -311,7 +311,7 @@ import {
   getDeviceList,
   getDeviceSections,
   getDeviceTelemetry,
-  getDeviceTypes,
+  getBoardTypes,
   getUnclaimedDevices
 } from '@/api/sdui';
 
@@ -429,8 +429,8 @@ export default {
     async fetchDeviceTypes() {
       this.loading.deviceTypes = true;
       try {
-        const res = await getDeviceTypes();
-        this.deviceTypes = res?.data || [];
+        const res = await getBoardTypes();
+        this.deviceTypes = Array.isArray(res?.data) ? res.data : [];
       } finally {
         this.loading.deviceTypes = false;
       }
