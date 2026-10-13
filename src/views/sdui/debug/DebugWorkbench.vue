@@ -19,6 +19,27 @@
     </div>
     <div v-if="deviceId" class="debug-layout">
       <main class="workspace">
+        <div class="canvas-row">
+          <PixelCanvasBoard
+            :device-id="deviceId"
+            :online="Boolean(available?.online)"
+            :external-busy="sending"
+            :frame-busy="frameSending"
+            :capabilities="frameCapabilities"
+            :capability-error="frameCapabilityError"
+            :view-state-error="viewStateError"
+            :session-open="frameSessionOpen"
+            :session-mode="frameMode"
+            :can-complete="canCompleteFrame"
+            :session-spec="canvasSessionSpec"
+            @busy-change="canvasBusy = $event"
+            @session-opened="onCanvasSessionOpened"
+            @frame-sent="frameCount++"
+            @session-closed="frameSessionOpen = false"
+            @complete="completeFrame"
+            @retry-view-state="loadViewState"
+          />
+        </div>
         <div class="workspace-columns">
           <div class="compact-column">
             <section class="device-controls" aria-label="设备控制">
@@ -216,25 +237,6 @@
             </section>
           </div>
           <div class="canvas-column">
-            <PixelCanvasBoard
-              :device-id="deviceId"
-              :online="Boolean(available?.online)"
-              :external-busy="sending"
-              :frame-busy="frameSending"
-              :capabilities="frameCapabilities"
-              :capability-error="frameCapabilityError"
-              :view-state-error="viewStateError"
-              :session-open="frameSessionOpen"
-              :session-mode="frameMode"
-              :can-complete="canCompleteFrame"
-              :session-spec="canvasSessionSpec"
-              @busy-change="canvasBusy = $event"
-              @session-opened="onCanvasSessionOpened"
-              @frame-sent="frameCount++"
-              @session-closed="frameSessionOpen = false"
-              @complete="completeFrame"
-              @retry-view-state="loadViewState"
-            />
             <el-card shadow="never" class="image-debug-card frame-debug-card">
               <template #header>
                 <div class="card-header">
@@ -1143,8 +1145,9 @@ onBeforeUnmount(() => {
 .device-picker { width: 360px; max-width: 100%; }
 .device-picker .el-select { flex: 1; min-width: 0; }
 .debug-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: stretch; flex: 1; min-height: 0; }
-.workspace { min-width: 0; min-height: 0; }
-.workspace-columns { display: grid; height: 100%; min-height: 0; grid-template-columns: clamp(420px, 32vw, 560px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.workspace { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.canvas-row { min-width: 0; flex-shrink: 0; }
+.workspace-columns { display: grid; flex: 1; min-height: 0; grid-template-columns: clamp(420px, 32vw, 560px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
 .compact-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; overflow-y: auto; container-type: inline-size; container-name: controls; }
 .compact-column > * { flex-shrink: 0; }
 .canvas-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
