@@ -1,281 +1,77 @@
 import request from '@/utils/request';
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
+import { handleRequestError } from '@/utils/request';
 
 const BASE = '/api/v1/sdui';
+const SDUI_TIMEOUT = 30000;
 
-// ═══════════════════════════════════════════════════════════════════
-// Module 1 — Devices  (/api/v1/sdui/devices)
-// ═══════════════════════════════════════════════════════════════════
-
-/** 3.1 设备卡片列表 (paginated, filterable) */
-export function getDeviceList(params) {
-  return request({ url: `${BASE}/devices`, method: 'get', params });
+function sduiRequest(config, { timeout = SDUI_TIMEOUT } = {}) {
+  return request({ ...config, timeout, sdui: { silentBusinessError: true } });
 }
 
-/** 3.2 未认领设备列表 */
-export function getUnclaimedDevices() {
-  return request({ url: `${BASE}/devices/unclaimed`, method: 'get' });
-}
-
-/** 4.1 设备完整快照 */
-export function getDeviceDetail(deviceId) {
-  return request({ url: `${BASE}/devices/${deviceId}`, method: 'get' });
-}
-
-/** 4.4 设备改名 / 备注 */
-export function updateDevice(deviceId, data) {
-  return request({ url: `${BASE}/devices/${deviceId}`, method: 'patch', data });
-}
-
-/** 4.5 认领设备 */
-export function claimDevice(deviceId, data) {
-  return request({ url: `${BASE}/devices/${deviceId}/claim`, method: 'post', data });
-}
-
-/** 4.6 删除设备 (reset to UNCLAIMED) */
-export function deleteDevice(deviceId) {
-  return request({ url: `${BASE}/devices/${deviceId}`, method: 'delete' });
-}
-
-/** 4.7 遥测原始记录 (按 createdAt DESC 分页) */
-export function getDeviceTelemetry(deviceId, params) {
-  return request({ url: `${BASE}/devices/${deviceId}/telemetry`, method: 'get', params });
-}
-
-/** 4.2 遥测趋势 (时序聚合) */
-export function getDeviceTelemetryTrends(deviceId, params) {
-  return request({ url: `${BASE}/devices/${deviceId}/telemetry/trends`, method: 'get', params });
-}
-
-/** 4.3 连接日志 */
-export function getDeviceConnectionLog(deviceId, params) {
-  return request({ url: `${BASE}/devices/${deviceId}/connection-log`, method: 'get', params });
-}
-
-/** 4.8 设备可用命令列表 (动态表单 schema) */
-export function getDeviceCommands(deviceId) {
-  return request({ url: `${BASE}/devices/${deviceId}/commands`, method: 'get' });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Module 2 — Capabilities  (/api/v1/sdui/capabilities)
-// ═══════════════════════════════════════════════════════════════════
-
-/** 5.1 全局能力目录 */
-export function getCapabilityCatalog() {
-  return request({ url: `${BASE}/capabilities/catalog`, method: 'get' });
-}
-
-/** 5.2 设备能力详情 */
-export function getDeviceCapabilities(deviceId) {
-  return request({ url: `${BASE}/capabilities/${deviceId}`, method: 'get' });
-}
-
-/** 5.2 增量：设备归一化能力树 */
-export function getDeviceCapabilityTree(deviceId) {
-  return request({ url: `${BASE}/capabilities/${deviceId}/tree`, method: 'get' });
-}
-
-/** 5.2 增量：设备能力元数据 */
-export function getDeviceCapabilityMetadata(deviceId) {
-  return request({ url: `${BASE}/capabilities/${deviceId}/metadata`, method: 'get' });
-}
-
-/** 5.3 设备事件 (多级树形: category → capability → event) */
-export function getDeviceCapabilityEvents(deviceId) {
-  return request({ url: `${BASE}/capabilities/${deviceId}/events`, method: 'get' });
-}
-
-/** 5.4 设备 Section 类型 (含 displayFields、renderMode) */
-export function getDeviceSections(deviceId) {
-  return request({ url: `${BASE}/capabilities/${deviceId}/sections`, method: 'get' });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Module 3 — Debug  (/api/v1/sdui/debug)
-// ═══════════════════════════════════════════════════════════════════
-
-/** 5.5 命令执行 */
-export function sendDebugCommand(deviceId, data) {
-  return request({ url: `${BASE}/debug/${deviceId}/command`, method: 'post', data });
-}
-
-/** 5.6 命令 Schema (动态表单参数) */
-export function getDebugCommandsSchema(deviceId) {
-  return request({ url: `${BASE}/debug/${deviceId}/commands`, method: 'get' });
-}
-
-/** 5.6.1 单条命令详情 */
-export function getDebugCommandDetail(deviceId, cmdId) {
-  return request({ url: `${BASE}/debug/${deviceId}/commands/${cmdId}`, method: 'get' });
-}
-
-/** 5.6.2 命令历史 */
-export function getDebugCommandHistory(deviceId, params) {
-  return request({ url: `${BASE}/debug/${deviceId}/commands/history`, method: 'get', params });
-}
-
-/** 5.7 命令统计 */
-export function getDeviceCommandStats(deviceId, params) {
-  return request({ url: `${BASE}/debug/${deviceId}/command-stats`, method: 'get', params });
-}
-
-function buildSduiRequestHeaders(extraHeaders = {}) {
+// Device inventory and telemetry
+export const getDeviceList = (params) => sduiRequest({ url: `${BASE}/devices`, method: 'get', params });
+export const getUnclaimedDevices = (params = {}) => sduiRequest({ url: `${BASE}/devices`, method: 'get', params: { page: 0, size: 12, registrationStatus: 'UNCLAIMED', ...params } });
+export const getDeviceDetail = (deviceId) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}`, method: 'get' });
+export const getDeviceCapabilitySchema = (deviceId) => sduiRequest({ url: `${BASE}/capabilities/${encodeURIComponent(deviceId)}/schema`, method: 'get' });
+export const updateDevice = (deviceId, data) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}`, method: 'patch', data });
+export const claimDevice = (deviceId, data) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}/claim`, method: 'post', data });
+export const deleteDevice = (deviceId) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}`, method: 'delete' });
+export const getDeviceTelemetry = (deviceId, params) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}/telemetry`, method: 'get', params });
+export const getDeviceTelemetryTrends = (deviceId, params) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}/telemetry/trends`, method: 'get', params });
+export const getDeviceConnectionLog = (deviceId, params) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}/connection-log`, method: 'get', params });
+// V2 device debugging
+export const getDebugAvailableRequests = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/requests`, method: 'get' });
+export const getDebugRequestHistory = (deviceId, limit = 20) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/requests/history`, method: 'get', params: { limit } });
+export const getDebugRequestDetail = (deviceId, requestId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/requests/${encodeURIComponent(requestId)}`, method: 'get' });
+export const sendDebugRequest = (deviceId, data) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/request`, method: 'post', data }, { timeout: 120000 });
+export const publishDebugView = (deviceId, data) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/view`, method: 'post', data }, { timeout: 60000 });
+export const getDebugViewState = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/view/state`, method: 'get' });
+export const republishDebugView = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/view/republish`, method: 'post' }, { timeout: 60000 });
+export const clearDebugViewState = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/view/state`, method: 'delete' });
+export const getDebugBusinessStatus = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/business/config-status`, method: 'get' });
+export const getDebugTransportDiagnostics = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/transport/diagnostics`, method: 'get' });
+export const getDebugAudioState = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/audio/state`, method: 'get' });
+export const getLatestRecording = (deviceId) => sduiRequest({ url: `${BASE}/devices/${encodeURIComponent(deviceId)}/artifacts/latest`, method: 'get', params: { type: 'audio/recording' } });
+export const getArtifactBlob = async (artifactId) => {
   const token = getToken();
-  const spaceId = localStorage.getItem('space_id') || '';
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(spaceId ? { 'X-Space-Id': spaceId } : {}),
-    ...extraHeaders
-  };
-}
-
-async function getSduiRaw(path, config = {}) {
-  const response = await axios({
-    url: buildSduiStreamUrl(path),
-    method: 'get',
-    headers: buildSduiRequestHeaders(config.headers || {}),
-    validateStatus: () => true,
-    ...config
-  });
+  const response = await axios({ url: streamUrl(`${BASE}/artifacts/${encodeURIComponent(artifactId)}/blob`), method: 'get', responseType: 'blob', headers: token ? { Authorization: `Bearer ${token}` } : {} });
   return response.data;
-}
-
-/** 音频录音会话（静默查询，40400 视为无会话） */
-export function getDebugAudioRecordSession(deviceId) {
-  return getSduiRaw(`${BASE}/debug/${deviceId}/sessions/audio-record`);
-}
-
-/** 设备活跃会话列表（静默查询） */
-export function getDebugSessions(deviceId) {
-  return getSduiRaw(`${BASE}/debug/${deviceId}/sessions`);
-}
-
-/** 最近一次录音产物元数据（静默查询，40400 视为无产物） */
-export function getDebugAudioRecordArtifact(deviceId) {
-  return getSduiRaw(`${BASE}/debug/${deviceId}/artifacts/audio-record-latest`);
-}
-
-export function buildDebugAudioRecordArtifactBlobUrl(deviceId, version = Date.now()) {
-  return `${buildSduiStreamUrl(`${BASE}/debug/${deviceId}/artifacts/audio-record-latest/blob`)}?t=${version}`;
-}
-
-/** 5.8 Section 推送 (preset / custom / auto-rotate) */
-export function sendDebugSection(deviceId, data) {
-  return request({ url: `${BASE}/debug/${deviceId}/section`, method: 'post', data });
-}
-
-/** 5.8.1 Section patch */
-export function patchDebugSection(deviceId, data) {
-  return request({ url: `${BASE}/debug/${deviceId}/section/patch`, method: 'post', data });
-}
-
-/** 5.8.2 Section state */
-export function getDebugSectionState(deviceId) {
-  return request({ url: `${BASE}/debug/${deviceId}/section/state`, method: 'get' });
-}
-
-/** 5.8.3 清空 Section workspace */
-export function clearDebugSectionState(deviceId) {
-  return request({ url: `${BASE}/debug/${deviceId}/section/state`, method: 'delete' });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Board capability catalog
-// ═══════════════════════════════════════════════════════════════════
-
-export function getBoardTypes() {
-  return request({ url: `${BASE}/board-types`, method: 'get' });
-}
-
-export function getBoardTypeSections(board) {
-  return request({ url: `${BASE}/board-types/${encodeURIComponent(board)}/sections`, method: 'get' });
-}
-
-/** 某板卡的可用事件（触发器候选） */
-export function getBoardTypeEvents(board) {
-  return request({ url: `${BASE}/board-types/${encodeURIComponent(board)}/events`, method: 'get' });
-}
-
-/** 全局事件目录（编辑器用） */
-export function getEventCatalog() {
-  return request({ url: `${BASE}/events/catalog`, method: 'get' });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Preserved — Ops Overview (backed by existing backend)
-// ═══════════════════════════════════════════════════════════════════
-
-export function getOpsOverview() {
-  return request({ url: `${BASE}/ops/overview`, method: 'get' });
-}
-
-export function buildSduiStreamUrl(path) {
-  const baseURL = import.meta.env.VITE_BASE_API || '';
-  const originBase = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${new URL(baseURL || '/', originBase).toString().replace(/\/$/, '')}${path}`;
-}
-
-export async function openSduiSseStream(path, { onEvent, signal, headers } = {}) {
+};
+export const sendDebugTts = (deviceId, text) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/audio/tts`, method: 'post', data: { text } }, { timeout: 120000 });
+export const sendDebugTestTone = (deviceId, tone) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/audio/tone/${encodeURIComponent(tone)}`, method: 'post' }, { timeout: 120000 });
+export const sendDebugAudio = async (deviceId, pcm) => {
   const token = getToken();
-  const spaceId = localStorage.getItem('space_id') || '';
-  const response = await axios({
-    url: buildSduiStreamUrl(path),
-    method: 'get',
-    responseType: 'stream',
-    signal,
-    headers: {
-      Accept: 'text/event-stream',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(spaceId ? { 'X-Space-Id': spaceId } : {}),
-      ...(headers || {})
-    },
-    adapter: 'fetch'
-  });
-
-  const stream = response?.data;
-  if (!stream?.getReader) {
-    throw new Error('当前环境不支持 SSE 流读取');
-  }
-
-  const reader = stream.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
-
-  const emitChunk = (rawEvent) => {
-    const lines = rawEvent.split('\n');
-    let event = 'message';
-    const dataLines = [];
-    lines.forEach((line) => {
-      if (line.startsWith('event:')) {
-        event = line.slice(6).trim();
-      }
-      if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trim());
-      }
+  const response = await axios({ url: streamUrl(`${BASE}/debug/${encodeURIComponent(deviceId)}/audio/downlink`), method: 'post', data: pcm, timeout: 120000,
+    headers: { 'Content-Type': 'application/octet-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  if (response.data?.code !== 20000) throw new Error(response.data?.message || '音频播放失败');
+  return response.data.data;
+};
+export const sendDebugViewFrame = async (deviceId, frame) => {
+  const token = getToken();
+  try {
+    const response = await axios({
+      url: streamUrl(`${BASE}/debug/${encodeURIComponent(deviceId)}/view/frame`),
+      method: 'post',
+      data: frame,
+      timeout: 60000,
+      headers: { 'Content-Type': 'application/octet-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     });
-    const dataText = dataLines.join('\n');
-    let data = dataText;
-    if (dataText) {
-      try {
-        data = JSON.parse(dataText);
-      } catch {
-        data = dataText;
-      }
-    }
-    onEvent?.({ event, data, raw: rawEvent });
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split('\n\n');
-    buffer = chunks.pop() || '';
-    chunks
-      .map((chunk) => chunk.trim())
-      .filter(Boolean)
-      .forEach(emitChunk);
+    const result = response?.data;
+    if (result?.code !== 20000) throw new Error(result?.message || '帧提交失败');
+    return result.data;
+  } catch (cause) {
+    if (axios.isAxiosError(cause)) handleRequestError(cause, { notify: false });
+    throw cause;
   }
+};
+export const completeDebugView = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/view/complete`, method: 'post' }, { timeout: 60000 });
+
+function streamUrl(path) {
+  const baseURL = import.meta.env.VITE_BASE_API || '';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${new URL(baseURL || '/', origin).toString().replace(/\/$/, '')}${path}`;
 }
+
+export const getDebugRecordingResult = (deviceId) => sduiRequest({ url: `${BASE}/debug/${encodeURIComponent(deviceId)}/audio/recording/result`, method: 'post' }, { timeout: 120000 });

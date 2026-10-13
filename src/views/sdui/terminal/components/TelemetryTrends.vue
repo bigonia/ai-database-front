@@ -32,6 +32,7 @@
     </template>
 
     <div v-loading="loading" class="cards-area">
+      <el-alert v-if="error && !loading" type="error" :closable="false" :title="error" />
       <div v-if="visibleCards.length" class="trend-grid">
         <section
           v-for="card in visibleCards"
@@ -107,7 +108,7 @@
           </div>
         </section>
       </div>
-      <el-empty v-else description="暂无趋势数据" :image-size="48" />
+      <el-empty v-else-if="!loading" :description="error ? '读取失败' : '暂无趋势数据'" :image-size="48" />
     </div>
   </el-card>
 </template>
@@ -141,6 +142,7 @@ const props = defineProps<{
   range: string
   metrics: string
   loading: boolean
+  error: string
 }>();
 
 const emit = defineEmits<{

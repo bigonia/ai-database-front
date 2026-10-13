@@ -75,7 +75,7 @@ export function fileToDoc(id) {
 
 /**
  * 获取文件流 (用于预览和下载)
- * 注意：request.js 会自动注入 Token 和 X-Space-Id，此处无需重复注入
+ * 注意：request.js 会自动注入 Token，此处无需重复注入
  * @param {number} id - 文件ID
  */
 export function getFileContent(id) {

@@ -3,15 +3,13 @@
     <!-- ═══ Screen Preview ═══ -->
     <div class="screen-area">
       <div
-        class="screen-preview"
-        :class="device.screenShape === 'round' ? 'screen-round' : 'screen-rect'"
+        class="screen-preview screen-rect"
       >
         <div class="screen-inner">
           <div class="screen-status-dot" :class="device.status === 'ONLINE' ? 'online' : 'offline'" />
           <div class="screen-device-name">{{ device.name || device.deviceId }}</div>
-          <div class="screen-model">{{ shortBoard(device.board) }}</div>
           <div class="screen-metric-row">
-            <span class="screen-metric">{{ memFreeText }}</span>
+            <span class="screen-metric">{{ fmtBytes(mem?.freeHeapTotal) }}</span>
             <span class="screen-metric-sep">|</span>
             <span class="screen-metric">{{ uptimeText }}</span>
           </div>
@@ -34,34 +32,45 @@
     <div class="info-row">
       <div class="device-id-mono">{{ device.deviceId }}</div>
       <div class="device-meta">
-        <span>{{ device.inputMode || '-' }}</span>
-        <span class="meta-dot">·</span>
-        <span>{{ device.sizeClass || '-' }}</span>
+        <el-tag size="small" :type="capabilitySyncTagType(device.capabilitySyncState)">
+          {{ capabilitySyncLabel(device.capabilitySyncState, device.status) }}
+        </el-tag>
         <span class="meta-dot">·</span>
         <span>连接 {{ device.connectionCount ?? '-' }}</span>
       </div>
     </div>
 
-    <!-- ═══ Memory Water Level ═══ -->
+    <!-- ═══ Available Memory ═══ -->
     <div class="memory-section">
       <div class="memory-header">
-        <span class="memory-label">内存</span>
-        <span class="memory-value">{{ memFreeText }}</span>
-        <span v-if="fragPct != null" class="memory-frag" :class="fragLevel">
-          碎片 {{ fragPct }}%
-        </span>
+        <span class="memory-label">总可用内存</span>
+        <span class="memory-value">{{ fmtBytes(mem?.freeHeapTotal) }}</span>
       </div>
-      <div class="water-bar-track">
+      <div v-for="pool in memoryPools" :key="pool.label" class="memory-pool">
+        <div class="memory-detail">
+          <span class="memory-label">{{ pool.label }}可用</span>
+          <span class="memory-value">{{ fmtBytes(pool.free) }}</span>
+          <span v-if="pool.frag != null" class="memory-frag" :class="fragLevel(pool.frag)">
+            碎片 {{ pool.frag }}%
+          </span>
+        </div>
         <div
-          class="water-bar-fill"
-          :class="fragLevel"
-          :style="{ width: memUsedPercent + '%' }"
-        />
-        <div class="water-bar-free" :style="{ width: (100 - memUsedPercent) + '%' }" />
-      </div>
-      <div class="memory-detail" v-if="mem.psramFree != null">
-        PSRAM {{ fmtBytes(mem.psramFree) }}
-        <span v-if="mem.psramFrag != null" :class="fragLevel">· 碎片 {{ mem.psramFrag }}%</span>
+          v-if="pool.frag != null"
+          class="water-bar-track"
+          role="progressbar"
+          :aria-label="`${pool.label}碎片率`"
+          :aria-valuenow="pool.frag"
+          :aria-valuetext="`碎片率 ${pool.frag}%`"
+          :aria-valuemin="0"
+          :aria-valuemax="100"
+          :title="`${pool.label}碎片率 ${pool.frag}%`"
+        >
+          <div
+            class="water-bar-fill"
+            :class="fragLevel(pool.frag)"
+            :style="{ width: Math.min(Math.max(pool.frag, 0), 100) + '%' }"
+          />
+        </div>
       </div>
     </div>
 
@@ -153,47 +162,37 @@ function formatTime(val: string | null | undefined): string {
   return isNaN(d.getTime()) ? val : d.toLocaleString('zh-CN', { hour12: false });
 }
 
-function shortBoard(board: string | undefined | null): string {
-  if (!board) return '-';
-  // Extract the chip model: "ESP32-S3" from "ESP32-S3-Touch-AMOLED-1.75C"
-  const parts = board.split('-');
-  if (parts.length >= 2) return parts.slice(0, 2).join('-');
-  return board.length > 16 ? board.slice(0, 14) + '…' : board;
+function capabilitySyncTagType(state: string | null | undefined): 'success' | 'warning' | 'danger' | 'info' {
+  if (state === 'READY') return 'success';
+  if (state === 'FAILED') return 'danger';
+  if (state === 'SCHEMA_PENDING' || state === 'READY_SENT') return 'warning';
+  return 'info';
+}
+
+function capabilitySyncLabel(state: string | null | undefined, status: string): string {
+  const labels: Record<string, string> = {
+    HELLO_PENDING: status === 'ONLINE' ? '等待能力握手' : '离线 · 等待握手',
+    SCHEMA_PENDING: '能力同步中',
+    READY_SENT: '等待终端确认',
+    READY: '能力已就绪',
+    FAILED: '能力同步失败'
+  };
+  return state ? labels[state] || `能力状态：${state}` : '尚无能力状态';
 }
 
 // ── Memory ──────────────────────────────────────────────
-const mem = computed(() => {
-  const t = props.device.lastTelemetry;
-  return {
-    freeHeapTotal: t?.memory?.freeHeapTotal ?? null,
-    freeHeapInternal: t?.memory?.freeHeapInternal ?? null,
-    freeHeapDma: t?.memory?.freeHeapDma ?? null,
-    freeHeapPsram: t?.memory?.freeHeapPsram ?? null,
-    fragInternal: t?.memory?.fragInternalPct ?? null,
-    fragDma: t?.memory?.fragDmaPct ?? null,
-    fragPsram: t?.memory?.fragPsramPct ?? null
-  };
-});
+const mem = computed(() => props.device.lastTelemetry?.memory);
+const memoryPools = computed(() => [
+  { label: '内部内存', free: mem.value?.freeHeapInternal, frag: mem.value?.fragInternalPct },
+  { label: 'PSRAM', free: mem.value?.freeHeapPsram, frag: mem.value?.fragPsramPct },
+  { label: 'DMA 内存', free: mem.value?.freeHeapDma, frag: mem.value?.fragDmaPct }
+].filter((pool) => pool.label === '内部内存' || pool.free != null || pool.frag != null));
 
-const memFreeText = computed(() => fmtBytes(mem.value.freeHeapTotal));
-
-const fragPct = computed(() => mem.value.fragInternal);
-
-// Estimate used % based on fragmentation. Higher frag = more "used" look.
-// This is a visual heuristic, not actual usage ratio.
-const memUsedPercent = computed(() => {
-  const f = fragPct.value;
-  if (f == null) return 30; // default
-  return Math.min(Math.max(f, 5), 95);
-});
-
-const fragLevel = computed(() => {
-  const f = fragPct.value;
-  if (f == null) return '';
-  if (f >= 60) return 'critical';
-  if (f >= 30) return 'warn';
+function fragLevel(pct: number): string {
+  if (pct >= 60) return 'critical';
+  if (pct >= 30) return 'warn';
   return 'good';
-});
+}
 
 const uptimeText = computed(() => fmtDuration(props.device.lastTelemetry?.uptimeS ?? null));
 
@@ -355,11 +354,6 @@ const tempLevelLabel = computed(() => {
   white-space: nowrap;
   max-width: 100%;
 }
-.screen-model {
-  font-size: 10px;
-  color: #64748b;
-  font-family: Menlo, Monaco, Consolas, monospace;
-}
 .screen-metric-row {
   display: flex;
   align-items: center;
@@ -415,7 +409,7 @@ const tempLevelLabel = computed(() => {
   color: #cbd5e1;
 }
 
-/* ═══ Memory Water Level ═══ */
+/* ═══ Available Memory ═══ */
 .memory-section {
   display: flex;
   flex-direction: column;
@@ -461,31 +455,31 @@ const tempLevelLabel = computed(() => {
   color: #b91c1c;
 }
 
-/* Water bar */
-.water-bar-track {
+.memory-pool {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.memory-detail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.water-bar-track {
   height: 8px;
   border-radius: 999px;
   overflow: hidden;
   background: #e2e8f0;
 }
 .water-bar-fill {
+  height: 100%;
+  border-radius: inherit;
   transition: width 0.5s ease;
-  border-radius: 999px 0 0 999px;
 }
 .water-bar-fill.good { background: linear-gradient(90deg, #86efac, #22c55e); }
 .water-bar-fill.warn { background: linear-gradient(90deg, #fde047, #eab308); }
 .water-bar-fill.critical { background: linear-gradient(90deg, #fca5a5, #ef4444); }
-.water-bar-free {
-  background: #e2e8f0;
-  border-radius: 0 999px 999px 0;
-}
-
-.memory-detail {
-  font-size: 11px;
-  color: #64748b;
-  font-family: Menlo, Monaco, Consolas, monospace;
-}
 
 /* ═══ Status Strip ═══ */
 .status-strip {

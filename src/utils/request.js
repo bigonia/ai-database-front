@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
-import { useSpaceStore } from '@/store/modules/space';
 import userStore from '@/store/modules/user';
 
 // create an axios instance
@@ -10,6 +9,36 @@ const service = axios.create({
   timeout: 5000 // request timeout
 });
 
+export class ApiBusinessError extends Error {
+  constructor(response, config) {
+    super(response?.message || '请求被服务端拒绝');
+    this.name = 'ApiBusinessError';
+    this.code = response?.code;
+    this.data = response?.data;
+    this.apiResponse = response;
+    this.config = config;
+  }
+}
+
+export function handleRequestError(error, { notify = true } = {}) {
+  const status = error.response?.status;
+  const currentPath = window.location.hash.slice(1).split('?')[0];
+  if (status === 401 && currentPath !== '/login') {
+    userStore().resetToken();
+    const redirect = window.location.hash.slice(1) || '/';
+    window.location.hash = `/login?redirect=${encodeURIComponent(redirect)}`;
+  } else if (status === 403 && currentPath !== '/401') {
+    window.location.hash = '/401';
+  }
+  if (notify && status !== 401 && status !== 403) {
+    ElMessage({
+      message: error.response?.data?.message || error.message,
+      type: 'error',
+      duration: 5 * 1000
+    });
+  }
+}
+
 // request interceptor
 service.interceptors.request.use(
   config => {
@@ -18,20 +47,6 @@ service.interceptors.request.use(
     if (token) {
       // let each request carry token
       config.headers['Authorization'] = 'Bearer ' + token;
-    }
-
-    // 注入业务空间 ID。优先使用本地缓存，避免请求层依赖 store 生命周期。
-    let currentSpaceId = localStorage.getItem('space_id') || '';
-    if (!currentSpaceId) {
-      try {
-        const spaceStore = useSpaceStore();
-        currentSpaceId = spaceStore.currentSpaceId || '';
-      } catch (e) {
-        // ignore pinia initialization timing errors in request layer
-      }
-    }
-    if (currentSpaceId) {
-      config.headers['X-Space-Id'] = currentSpaceId;
     }
 
     return config;
@@ -76,12 +91,6 @@ service.interceptors.response.use(
         return response.data; // 直接返回 Blob，不检查 code
       }
 
-      ElMessage({
-        message: res.message || 'Error',
-        type: 'error',
-        duration: 5 * 1000
-      });
-
       if (res.code === 50008 || res.code === 50012 || res.code === 50014) {
         ElMessageBox.confirm('You have been logged out, you can cancel to stay on this page, or log in again', 'Confirm logout', {
           confirmButtonText: 'Re-Login',
@@ -92,18 +101,17 @@ service.interceptors.response.use(
           location.reload();
         });
       }
-      return Promise.reject(new Error(res.message || 'Error'));
+      const error = new ApiBusinessError(res, response.config);
+      if (!response.config.sdui?.silentBusinessError) {
+        ElMessage({ message: error.message, type: 'error', duration: 5 * 1000 });
+      }
+      return Promise.reject(error);
     } else {
       return res;
     }
   },
   error => {
-    console.log('err' + error); // for debug
-    ElMessage({
-      message: error.message,
-      type: 'error',
-      duration: 5 * 1000
-    });
+    handleRequestError(error, { notify: !error.config?.sdui?.silentHttpError });
     return Promise.reject(error);
   }
 );

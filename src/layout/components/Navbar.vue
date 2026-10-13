@@ -7,7 +7,6 @@
 
     <div class="right-menu">
       <template v-if="device !== 'mobile'">
-        <space-select class="right-menu-item hover-effect" />
       </template>
 
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
@@ -46,7 +45,6 @@ import { mapState } from 'pinia';
 import store from '@/store';
 import Breadcrumb from '@/components/Breadcrumb';
 import Hamburger from '@/components/Hamburger';
-import SpaceSelect from '@/components/SpaceSelect/index.vue';
 import { defineComponent } from 'vue';
 import { CaretBottom } from '@element-plus/icons-vue';
 
@@ -54,8 +52,7 @@ export default defineComponent({
   components: {
     Breadcrumb,
     Hamburger,
-    CaretBottom,
-    SpaceSelect
+    CaretBottom
   },
   computed: {
     ...mapState(store.app, [

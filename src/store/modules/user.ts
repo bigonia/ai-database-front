@@ -47,22 +47,23 @@ export default defineStore({
         apiGetInfo(this.token).then(response => {
           const { data } = response;
 
-          if (!data) {
-            reject('Verification failed, please Login again.');
+          if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            reject(new Error('用户信息响应格式无效，请重新登录'));
+            return;
           }
 
           const { roles, name, avatar, introduction } = data;
-
-          // roles must be a non-empty array
-          if (!roles || roles.length <= 0) {
-            reject('getInfo: roles must be a non-null array!');
+          if (!Array.isArray(roles) || roles.length === 0
+            || !roles.every(role => typeof role === 'string' && role.trim().length > 0)) {
+            reject(new Error('用户角色信息无效，请重新登录'));
+            return;
           }
 
-          this.roles = roles;
-          this.name = name;
-          this.avatar = avatar;
-          this.introduction = introduction;
-          resolve(data);
+          this.roles = [...new Set(roles.map(role => role.trim()))];
+          this.name = typeof name === 'string' ? name : '';
+          this.avatar = typeof avatar === 'string' ? avatar : '';
+          this.introduction = typeof introduction === 'string' ? introduction : '';
+          resolve({ ...data, roles: this.roles });
         }).catch(error => {
           reject(error);
         });
@@ -77,6 +78,7 @@ export default defineStore({
           this.roles = [];
           removeToken();
           resetRouter();
+          permissionStore().setRoutes([]);
 
           // reset visited views and cached views
           // to fixed https://github.com/PanJiaChen/vue-element-admin/issues/2485
@@ -94,6 +96,9 @@ export default defineStore({
       this.token = '';
       this.roles = [];
       removeToken();
+      resetRouter();
+      permissionStore().setRoutes([]);
+      tagsViewStore().delAllViews();
     },
 
     // dynamically modify permissions

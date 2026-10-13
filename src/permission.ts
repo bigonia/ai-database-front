@@ -31,7 +31,16 @@ router.beforeEach(async (to, from, next) => {
       const hasRoles = userStore().roles && userStore().roles.length > 0;
       // console.log('hasRoles=', hasRoles);
       if (hasRoles) {
-        next();
+        if (!to.matched.length) {
+          next({ path: '/404', replace: true });
+        } else {
+          const denied = to.matched.some(record => {
+            const allowedRoles = record.meta.roles as string[] | undefined;
+            return Array.isArray(allowedRoles)
+              && !userStore().roles.some(role => allowedRoles.includes(role));
+          });
+          next(denied ? { path: '/401', replace: true } : undefined);
+        }
       } else {
         try {
           // get user info
@@ -47,16 +56,19 @@ router.beforeEach(async (to, from, next) => {
           const accessRoutes = await permissionStore().generateRoutes(roles);
           // console.log('accessRoutes=', accessRoutes)
 
-          // dynamically add accessible routes
-          // router.addRoutes(accessRoutes);
-          accessRoutes.forEach(item => {
-            router.addRoute(item);
-          });
-          // console.log('next=', accessRoutes);
-
-          // hack method to ensure that addRoutes is complete
-          // set the replace: true, so the navigation will not leave a history record
-          next({ ...to, replace: true });
+          // Install role-filtered routes, then run the same direct-link checks used on later navigations.
+          accessRoutes.forEach(item => router.addRoute(item));
+          const resolved = router.resolve(to.fullPath);
+          if (!resolved.matched.length) {
+            next({ path: '/404', replace: true });
+          } else {
+            const denied = resolved.matched.some(record => {
+              const allowedRoles = record.meta.roles as string[] | undefined;
+              return Array.isArray(allowedRoles)
+                && !roles.some(role => allowedRoles.includes(role));
+            });
+            next(denied ? { path: '/401', replace: true } : { ...to, replace: true });
+          }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
           // remove token and go to login page to re-login

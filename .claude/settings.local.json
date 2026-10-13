@@ -22,7 +22,10 @@
       "Bash(npx vue-tsc *)",
       "Bash(echo \"exit: $?\")",
       "Bash(curl -s http://172.16.8.239:8001/api/v1/sdui/board-types/ESP32-S3-LCD-0.85/sections)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(curl -s http://127.0.0.1:8080/api/spaces/all -H 'Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJyb2xlcyI6W3siYXV0aG9yaXR5IjoiUk9MRV9zZHVpX29ubHkifV0sInN1YiI6Imd1ZXN0IiwiaWF0IjoxNzgyMzc4Nzk1LCJleHAiOjE3ODI0NjUxOTV9.nkfE3YM4OvZTS1hv5_htbN5uCEMIXOT0o8b3TTbPJnjD96P25DJCDEEI9-BHKDcm')",
+      "Bash(curl *)"
     ]
   }
 }

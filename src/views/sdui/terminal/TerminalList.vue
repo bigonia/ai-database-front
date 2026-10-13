@@ -8,7 +8,6 @@
         <p>查看所有已认领和未认领的终端设备，监控在线状态和遥测数据。</p>
       </div>
       <div class="hero-actions">
-        <el-button plain :loading="loading.types" @click="fetchDeviceTypes">刷新机型</el-button>
         <el-button type="primary" :loading="loading.claimed || loading.unclaimed" @click="refreshAll">刷新列表</el-button>
       </div>
     </section>
@@ -18,10 +17,9 @@
       <el-tab-pane label="已认领设备" name="claimed">
         <!-- Summary -->
         <div class="summary-bar">
-          <span>总计 <strong>{{ pagination.total }}</strong></span>
-          <span class="online">在线 <strong>{{ onlineCount(claimedDevices) }}</strong></span>
-          <span class="offline">离线 <strong>{{ offlineCount(claimedDevices) }}</strong></span>
-          <span>机型 <strong>{{ deviceTypes.length }}</strong></span>
+          <span>总计 <strong>{{ claimedCounts.total }}</strong></span>
+          <span class="online">在线 <strong>{{ claimedCounts.online }}</strong></span>
+          <span class="offline">离线 <strong>{{ claimedCounts.offline }}</strong></span>
         </div>
 
         <!-- Filters -->
@@ -35,22 +33,6 @@
           >
             <el-option label="在线" value="ONLINE" />
             <el-option label="离线" value="OFFLINE" />
-          </el-select>
-
-          <el-select
-            :model-value="filters.board"
-            clearable
-            filterable
-            placeholder="硬件型号"
-            style="width: 220px"
-            @change="onFilterChange('board', $event)"
-          >
-            <el-option
-              v-for="dt in deviceTypes"
-              :key="dt.board"
-              :label="`${dt.label || dt.board} (${dt.deviceCount || 0})`"
-              :value="dt.board"
-            />
           </el-select>
 
           <el-input
@@ -84,6 +66,7 @@
 
         <!-- Device grid -->
         <el-card shadow="never" v-loading="loading.claimed" class="list-shell">
+          <el-alert v-if="errors.claimed" :type="staleSnapshot.claimed ? 'warning' : 'error'" :closable="false" :title="errors.claimed" />
           <div v-if="claimedDevices.length" class="device-grid">
             <DeviceCard
               v-for="device in claimedDevices"
@@ -93,7 +76,7 @@
               @delete="removeDevice"
             />
           </div>
-          <el-empty v-else description="没有符合筛选条件的终端" :image-size="80" />
+          <el-empty v-else-if="!errors.claimed" description="没有符合筛选条件的终端" :image-size="80" />
 
           <Pagination
             v-if="pagination.total > 0"
@@ -108,12 +91,13 @@
       <!-- ═══ 未认领设备 ═══ -->
       <el-tab-pane label="未认领设备" name="unclaimed">
         <div class="summary-bar">
-          <span>待认领 <strong>{{ unclaimedDevices.length }}</strong></span>
-          <span class="online">在线 <strong>{{ onlineCount(unclaimedDevices) }}</strong></span>
-          <span class="offline">离线 <strong>{{ offlineCount(unclaimedDevices) }}</strong></span>
+          <span>待认领 <strong>{{ unclaimedCounts.total }}</strong></span>
+          <span class="online">在线 <strong>{{ unclaimedCounts.online }}</strong></span>
+          <span class="offline">离线 <strong>{{ unclaimedCounts.offline }}</strong></span>
         </div>
 
         <el-card shadow="never" v-loading="loading.unclaimed" class="list-shell">
+          <el-alert v-if="errors.unclaimed" :type="staleSnapshot.unclaimed ? 'warning' : 'error'" :closable="false" :title="errors.unclaimed" />
           <div v-if="unclaimedDevices.length" class="device-grid">
             <div
               v-for="device in unclaimedDevices"
@@ -136,8 +120,6 @@
               </div>
 
               <div class="uc-meta">
-                <span>{{ device.board || '-' }}</span>
-                <span>·</span>
                 <span>{{ device.registrationStatus || 'UNCLAIMED' }}</span>
               </div>
 
@@ -151,7 +133,14 @@
               </div>
             </div>
           </div>
-          <el-empty v-else description="当前没有待认领终端" :image-size="80" />
+          <el-empty v-else-if="!errors.unclaimed" description="当前没有待认领终端" :image-size="80" />
+          <Pagination
+            v-if="unclaimedPagination.total > 0"
+            :total="unclaimedPagination.total"
+            :page="unclaimedPagination.page"
+            :limit="unclaimedPagination.size"
+            @pagination="handleUnclaimedPagination"
+          />
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -180,18 +169,20 @@ const router = useRouter();
 const {
   claimedDevices,
   unclaimedDevices,
-  deviceTypes,
   loading,
+  errors,
+  staleSnapshot,
   filters,
   pagination,
-  onlineCount,
-  offlineCount,
+  unclaimedPagination,
+  claimedCounts,
+  unclaimedCounts,
   fetchClaimedDevices,
   fetchUnclaimedDevices,
-  fetchDeviceTypes,
   refreshAll,
   resetAndFetch,
   handlePagination: listHandlePagination,
+  handleUnclaimedPagination,
   submitClaim,
   removeDevice
 } = useDeviceList();
@@ -262,7 +253,6 @@ function handlePagination({ page, limit }: { page: number; limit: number }) {
 // ── Init ───────────────────────────────────────────────
 onMounted(() => {
   refreshAll();
-  fetchDeviceTypes();
 });
 
 // ── Formatters ─────────────────────────────────────────

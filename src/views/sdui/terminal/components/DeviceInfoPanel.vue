@@ -18,17 +18,28 @@
         </el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="注册状态">{{ detail.registrationStatus || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="板卡">{{ detail.board || '-' }}</el-descriptions-item>
       <el-descriptions-item label="屏幕">
-        {{ detail.screenWidth }}×{{ detail.screenHeight }}
-        {{ detail.screenShape ? `(${detail.screenShape})` : '' }}
+        {{ detail.surface?.screen ? `${detail.surface.screen.width}×${detail.surface.screen.height}` : '-' }}
+        {{ detail.surface?.screen?.touch ? ' · 触控' : '' }}
       </el-descriptions-item>
-      <el-descriptions-item label="输入方式">{{ detail.inputMode || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="尺寸级别">
-        <el-tag size="small">{{ detail.sizeClass || '-' }}</el-tag>
+      <el-descriptions-item label="协议版本">{{ detail.protocolVersion || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="Schema 版本">{{ detail.schemaVersion || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="能力同步">
+        <el-tag size="small" :type="detail.capabilitySummary?.schemaSynced ? 'success' : 'warning'">
+          {{ detail.capabilitySyncState || '未知' }}
+        </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="业务配置">
+        {{ detail.businessAllowed ? '允许' : '未就绪' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="设备能力">
+        {{ detail.capabilitySummary?.actionCount ?? 0 }} 个动作 · {{ detail.capabilitySummary?.triggerCount ?? 0 }} 个触发器
       </el-descriptions-item>
       <el-descriptions-item label="当前会话">{{ detail.sessionId || '-' }}</el-descriptions-item>
       <el-descriptions-item label="连接次数">{{ detail.connectionCount ?? '-' }}</el-descriptions-item>
+      <el-descriptions-item label="累计在线">
+        {{ detail.totalUptimeS == null ? '-' : formatUptime(detail.totalUptimeS) }}
+      </el-descriptions-item>
       <el-descriptions-item label="连接时间">{{ formatTime(detail.connectedAt) }}</el-descriptions-item>
       <el-descriptions-item label="最近在线">{{ formatTime(detail.lastSeenAt) }}</el-descriptions-item>
       <el-descriptions-item label="认领时间">{{ formatTime(detail.claimedAt) }}</el-descriptions-item>
@@ -97,6 +108,15 @@ function formatTime(val: string | null | undefined): string {
   if (!val) return '-';
   const d = new Date(val);
   return isNaN(d.getTime()) ? val : d.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days) return `${days} 天 ${hours} 小时`;
+  if (hours) return `${hours} 小时 ${minutes} 分钟`;
+  return `${minutes} 分钟`;
 }
 </script>
 

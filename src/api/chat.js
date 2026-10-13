@@ -1,6 +1,5 @@
 import request from '@/utils/request';
 import { getToken } from '@/utils/auth';
-import { useSpaceStore } from '@/store/modules/space';
 
 // 定义双重 Base URL 以适配混合后端架构
 const LEGACY_BASE_URL = '/api/ai'; // 旧版管理接口地址
@@ -83,11 +82,6 @@ export async function fetchChatStream(data, onData, onFinish, onError) {
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const spaceStore = useSpaceStore();
-    if (spaceStore.currentSpaceId) {
-      headers['X-Space-Id'] = spaceStore.currentSpaceId;
     }
 
     // 从 data 中解构出 agentId，剩余部分作为 body

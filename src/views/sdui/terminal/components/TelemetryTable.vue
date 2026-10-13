@@ -42,7 +42,8 @@
         </el-table-column>
       </el-table>
 
-      <el-empty v-if="!rows.length && !loading" description="暂无遥测数据" :image-size="40" />
+      <el-alert v-if="error && !loading" type="error" :closable="false" :title="error" />
+      <el-empty v-else-if="!rows.length && !loading" :description="error ? '读取失败' : '暂无遥测数据'" :image-size="40" />
     </div>
 
     <div v-if="total > 0" class="panel-footer">
@@ -66,6 +67,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 const props = defineProps<{
   rows: Record<string, unknown>[]
   loading: boolean
+  error: string
   total: number
   currentPage: number
   pageSize: number

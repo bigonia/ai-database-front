@@ -63,6 +63,10 @@ export const constantRoutes: RouteRecordRaw[] = [
       }
     ]
   },
+
+];
+
+export const asyncRoutes: RouteRecordRaw[] = [
   {
     path: '/sdui',
     component: Layout,
@@ -74,6 +78,12 @@ export const constantRoutes: RouteRecordRaw[] = [
       roles: ['admin', 'editor', 'guest', 'sdui_only']
     },
     children: [
+      {
+        path: 'agent-access',
+        name: 'SduiAgentAccess',
+        component: () => import('@/views/sdui/agent/AgentAccess.vue'),
+        meta: { title: 'Agent 接入', icon: 'link', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+      },
       {
         path: 'terminal',
         name: 'SduiTerminal',
@@ -87,81 +97,43 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '终端详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'devices',
-        redirect: '/sdui/terminal',
-        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
         path: 'debug',
         name: 'SduiDebug',
         component: () => import('@/views/sdui/debug.vue'),
         meta: { title: '调试台', icon: 'tools', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'catalog',
-        name: 'SduiCatalog',
-        component: () => import('@/views/sdui/catalog.vue'),
-        meta: { title: '能力目录', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+        path: 'businesses',
+        name: 'SduiBusinesses',
+        component: () => import('@/views/sdui/business/BusinessLibrary.vue'),
+        meta: { title: '业务', icon: 'operation', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'overview',
-        redirect: '/sdui/terminal',
-        meta: { hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      // ── Node Workflow 新路由 ──
-      {
-        path: 'node-workflows',
-        name: 'SduiNodeWorkflows',
-        component: () => import('@/views/sdui/workflow/WorkflowLibrary.vue'),
-        meta: { title: '节点工作流', icon: 'share', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+        path: 'deployments',
+        name: 'SduiDeployments',
+        component: () => import('@/views/sdui/business/DeploymentLibrary.vue'),
+        meta: { title: '部署', icon: 'upload', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'node-workflows/editor',
-        name: 'SduiNodeWorkflowEditor',
-        component: () => import('@/views/sdui/workflow/WorkflowEditor.vue'),
-        meta: { title: '工作流编辑器', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+        path: 'businesses/:businessId',
+        name: 'SduiBusinessEditor',
+        component: () => import('@/views/sdui/business/BusinessEditor.vue'),
+        meta: { title: '业务编辑', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'node-workflows/runs',
-        name: 'SduiWorkflowRuns',
-        component: () => import('@/views/sdui/workflow/RunHistory.vue'),
-        meta: { title: '运行记录', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'node-workflows/:workflowId/runs/:runId',
-        name: 'SduiWorkflowRunDetail',
-        component: () => import('@/views/sdui/workflow/RunDetail.vue'),
-        meta: { title: '运行详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'node-workflows/:workflowId/deployments',
-        name: 'SduiWorkflowDeployments',
-        component: () => import('@/views/sdui/workflow/DeploymentManagement.vue'),
-        meta: { title: '部署管理', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
-      {
-        path: 'node-workflows/:workflowId/deployments/:deploymentId',
-        name: 'SduiWorkflowDeploymentDetail',
-        component: () => import('@/views/sdui/workflow/DeploymentDetail.vue'),
+        path: 'deployments/:deploymentId',
+        name: 'SduiDeploymentDetail',
+        component: () => import('@/views/sdui/business/DeploymentDetail.vue'),
         meta: { title: '部署详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
       {
-        path: 'ui-templates',
-        name: 'SduiUiTemplates',
-        component: () => import('@/views/sdui/template/UiTemplateLibrary.vue'),
-        meta: { title: 'UI 模板', icon: 'form', roles: ['admin', 'editor', 'guest', 'sdui_only'] }
+        path: 'runs/:runId',
+        name: 'SduiRunDetail',
+        component: () => import('@/views/sdui/business/RunDetail.vue'),
+        meta: { title: '运行详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
       },
-      {
-        path: 'ui-templates/editor',
-        name: 'SduiUiTemplateEditor',
-        component: () => import('@/views/sdui/template/UiTemplateEditor.vue'),
-        meta: { title: '模板编辑器', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      }
     ]
-  }
-];
-
-export const asyncRoutes: RouteRecordRaw[] = [
+  },
   {
     path: '/agent',
     component: Layout,

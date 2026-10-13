@@ -7,6 +7,23 @@
       </div>
     </template>
 
+    <div v-if="data" class="connection-summary">
+      <div class="summary-session">
+        <span class="summary-label">当前会话</span>
+        <template v-if="data.currentSession">
+          <span>{{ formatTime(data.currentSession.connectedAt) }}</span>
+          <span v-if="data.currentSession.durationS !== null">持续 {{ formatDuration(data.currentSession.durationS) }}</span>
+          <code v-if="data.currentSession.sessionId">{{ data.currentSession.sessionId }}</code>
+        </template>
+        <span v-else class="summary-empty">当前无活动会话</span>
+      </div>
+      <div v-if="data.stats" class="summary-stats">
+        <span>累计连接 {{ data.stats.totalConnections }}</span>
+        <span>累计断开 {{ data.stats.totalDisconnections }}</span>
+      </div>
+      <span v-else class="summary-empty">连接统计暂不可用</span>
+    </div>
+
     <div ref="bodyRef" class="timeline-body">
       <div v-if="events.length" class="event-list">
         <div
@@ -25,7 +42,7 @@
               <span v-if="evt.sessionId">Session: <code>{{ evt.sessionId }}</code></span>
               <span v-if="evt.ipAddress">IP: {{ evt.ipAddress }}</span>
               <span v-if="evt.disconnectReason" class="disconnect-reason">
-                原因: {{ evt.disconnectReason }}
+                原因: {{ formatDisconnectReason(evt.disconnectReason) }}
               </span>
             </div>
             <div class="event-subline">
@@ -34,7 +51,9 @@
           </div>
         </div>
       </div>
-      <el-empty v-else description="暂无连接事件" :image-size="40" />
+      <el-alert v-if="error && !loading" type="error" :closable="false" :title="error" />
+      <el-empty v-else-if="!events.length && !loading" :description="error ? '读取失败' : '暂无连接事件'" :image-size="40" />
+      <el-empty v-else-if="loading && !events.length" description="正在读取连接事件" :image-size="40" />
     </div>
 
     <div v-if="(data?.totalEvents ?? 0) > 0" class="timeline-footer">
@@ -59,6 +78,8 @@ const props = defineProps<{
   data: ConnectionLog | null
   currentPage: number
   pageSize: number
+  loading: boolean
+  error: string
 }>();
 
 const emit = defineEmits<{
@@ -106,6 +127,25 @@ function formatTime(val: string | null): string {
   const d = new Date(val);
   return isNaN(d.getTime()) ? val : d.toLocaleString('zh-CN', { hour12: false });
 }
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds} 秒`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return minutes ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+}
+
+function formatDisconnectReason(reason: string): string {
+  const labels: Record<string, string> = {
+    duplicate_login: '新连接接管',
+    server_restart: '平台重启',
+    session_closed: '连接关闭'
+  };
+  if (labels[reason]) return labels[reason];
+  if (reason.startsWith('websocket_close_')) return `WebSocket 关闭（${reason.slice('websocket_close_'.length)}）`;
+  return reason;
+}
 </script>
 
 <style scoped>
@@ -116,6 +156,32 @@ function formatTime(val: string | null): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.connection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 0 0 10px;
+  color: #475569;
+  font-size: 12px;
+}
+.summary-session,
+.summary-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.summary-label { color: #64748b; font-weight: 600; }
+.summary-empty { color: #94a3b8; }
+.connection-summary code {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Menlo, Monaco, Consolas, monospace;
 }
 .timeline-body {
   flex: 1;
