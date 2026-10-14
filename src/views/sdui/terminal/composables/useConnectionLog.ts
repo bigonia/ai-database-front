@@ -1,6 +1,8 @@
 import { ref, reactive } from 'vue';
 import { getDeviceConnectionLog } from '@/api/sdui';
 import { ElMessage } from 'element-plus';
+import type { ConnectionLog } from '@/types/sdui-dashboard';
+import { errorDetails } from '@/utils/errorDetails';
 
 export function useConnectionLog() {
   const connectionData = ref<ConnectionLog | null>(null);
@@ -47,10 +49,10 @@ export function useConnectionLog() {
         return;
       }
       connectionData.value = data;
-    } catch (cause: any) {
+    } catch (cause: unknown) {
       if (currentRequestId === requestId) {
         connectionData.value = null;
-        error.value = cause.message || '加载连接日志失败';
+        error.value = errorDetails(cause).message || '加载连接日志失败';
         ElMessage.error(error.value);
       }
     } finally {
@@ -95,22 +97,22 @@ function isConnectionLog(
   if (!isRecord(value) || value.deviceId !== deviceId || value.page !== requestedPage || value.size !== requestedSize) return false;
   if (!isNonNegativeInteger(value.totalEvents) || !Array.isArray(value.events) || value.events.length > requestedSize) return false;
   if (value.currentSession != null) {
-    if (!isRecord(value.currentSession)
-      || !isNullableString(value.currentSession.connectedAt)
-      || !isNullableString(value.currentSession.sessionId)
-      || !(value.currentSession.durationS === null || isNonNegativeInteger(value.currentSession.durationS))) return false;
+    if (!isRecord(value.currentSession) ||
+      !isNullableString(value.currentSession.connectedAt) ||
+      !isNullableString(value.currentSession.sessionId) ||
+      !(value.currentSession.durationS === null || isNonNegativeInteger(value.currentSession.durationS))) return false;
   }
   if (value.stats != null) {
-    if (!isRecord(value.stats)
-      || !isNonNegativeInteger(value.stats.totalConnections)
-      || !isNonNegativeInteger(value.stats.totalDisconnections)
-      || !isRecord(value.stats.disconnectReasons)
-      || !Object.values(value.stats.disconnectReasons).every(isNonNegativeInteger)) return false;
+    if (!isRecord(value.stats) ||
+      !isNonNegativeInteger(value.stats.totalConnections) ||
+      !isNonNegativeInteger(value.stats.totalDisconnections) ||
+      !isRecord(value.stats.disconnectReasons) ||
+      !Object.values(value.stats.disconnectReasons).every(isNonNegativeInteger)) return false;
   }
-  return value.events.every((event) => isRecord(event)
-    && (event.eventType === 'CONNECTED' || event.eventType === 'DISCONNECTED')
-    && isNullableString(event.sessionId)
-    && isNullableString(event.ipAddress)
-    && isNullableString(event.disconnectReason)
-    && isNullableString(event.eventAt));
+  return value.events.every((event) => isRecord(event) &&
+    (event.eventType === 'CONNECTED' || event.eventType === 'DISCONNECTED') &&
+    isNullableString(event.sessionId) &&
+    isNullableString(event.ipAddress) &&
+    isNullableString(event.disconnectReason) &&
+    isNullableString(event.eventAt));
 }

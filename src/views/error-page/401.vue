@@ -14,7 +14,7 @@
         <ul class="list-unstyled">
           <li>或者你可以去:</li>
           <li class="link-type">
-            <router-link to="/dashboard">
+            <router-link to="/sdui/terminal">
               回首页
             </router-link>
           </li>
@@ -53,7 +53,7 @@ export default defineComponent({
   methods: {
     back() {
       if (this.$route.query.noGoBack) {
-        this.$router.push({ path: '/dashboard' });
+        this.$router.push({ path: '/sdui/terminal' });
       } else {
         this.$router.go(-1);
       }

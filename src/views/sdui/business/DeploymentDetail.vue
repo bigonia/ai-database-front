@@ -9,7 +9,7 @@
     <div class="metric-grid"><el-card shadow="never"><small>绑定设备</small><strong>{{ deviceRows.length }}</strong></el-card><el-card shadow="never"><small>已确认安装</small><strong>{{ deviceRows.filter(row => row.status === 'ok').length }}</strong></el-card><el-card shadow="never"><small>业务执行记录</small><strong>{{ recordTotal }}</strong></el-card><el-card shadow="never"><small>失败 / 未完成（本页）</small><strong>{{ executionRecords.filter(row => row.status !== 'passed').length }}</strong></el-card></div>
     <el-card shadow="never" class="console-card"><template #header><div class="operation-heading"><strong>业务部署状态</strong><span class="muted">每个业务部署作为一条记录；此处汇总本次部署涉及的设备状态</span></div></template>
       <el-alert v-if="preflightError" type="warning" :closable="false" :title="preflightError"/><el-alert v-if="uninstallBlocked" type="warning" :closable="false" :title="uninstallBlockReason"/>
-      <el-table :data="deviceRows" v-loading="loading"><el-table-column prop="deviceId" label="设备" min-width="190"/><el-table-column prop="role" label="角色" width="80"/><el-table-column label="在线状态" width="100"><template #default="{row}"><el-tag :type="devicePreflight(row.deviceId)?.online ? 'success' : 'info'">{{ devicePreflight(row.deviceId) ? (devicePreflight(row.deviceId)?.online ? '在线' : '离线') : '未查询' }}</el-tag></template></el-table-column><el-table-column label="安装状态" width="120"><template #default="{row}"><el-tag :type="tagType(row.status)">{{ statusLabel(row.status) }}</el-tag></template></el-table-column><el-table-column label="最近执行上报" min-width="170"><template #default="{row}">{{ latestExecution(row.deviceId)?.startedAt || '尚未收到' }}</template></el-table-column><el-table-column label="异常 / 阻塞原因" min-width="180"><template #default="{row}">{{ row.error || devicePreflight(row.deviceId)?.blockingReason || '—' }}</template></el-table-column><el-table-column label="维护" width="330"><template #default="{row}"><el-button v-if="status?.status === 'active' && row.status === 'ok'" link type="primary" :disabled="operationLoading" @click="editDeviceOrder(row.deviceId)">配置主业务顺序</el-button><el-button v-if="status?.status === 'active'" link type="primary" :disabled="operationLoading" @click="installOneDevice(row.deviceId)">重新下发此设备</el-button><el-button v-if="status?.status === 'active' && row.status === 'ok'" link type="danger" :disabled="operationLoading" @click="uninstallOneDevice(row.deviceId)">卸载此设备</el-button></template></el-table-column></el-table>
+      <el-table :data="deviceRows" v-loading="loading"><el-table-column prop="deviceId" label="设备" min-width="190"/><el-table-column prop="role" label="角色" width="80"/><el-table-column label="在线状态" width="100"><template #default="{row}"><el-tag :type="devicePreflight(row.deviceId)?.online ? 'success' : 'info'">{{ devicePreflight(row.deviceId) ? (devicePreflight(row.deviceId)?.online ? '在线' : '离线') : '未查询' }}</el-tag></template></el-table-column><el-table-column label="安装状态" width="120"><template #default="{row}"><el-tag :type="deploymentDeviceStatusType(row.status)">{{ deploymentDeviceStatusLabel(row.status) }}</el-tag></template></el-table-column><el-table-column label="最近执行上报" min-width="170"><template #default="{row}">{{ latestExecution(row.deviceId)?.startedAt || '尚未收到' }}</template></el-table-column><el-table-column label="异常 / 阻塞原因" min-width="180"><template #default="{row}">{{ row.error || devicePreflight(row.deviceId)?.blockingReason || '—' }}</template></el-table-column><el-table-column label="维护" width="330"><template #default="{row}"><el-button v-if="status?.status === 'active' && row.status === 'ok'" link type="primary" :disabled="operationLoading" @click="editDeviceOrder(row.deviceId)">配置主业务顺序</el-button><el-button v-if="status?.status === 'active'" link type="primary" :disabled="operationLoading" @click="installOneDevice(row.deviceId)">重新下发此设备</el-button><el-button v-if="status?.status === 'active' && row.status === 'ok'" link type="danger" :disabled="operationLoading" @click="uninstallOneDevice(row.deviceId)">卸载此设备</el-button></template></el-table-column></el-table>
     </el-card>
     <el-card shadow="never" class="console-card"><template #header><div class="operation-heading"><strong>业务执行记录</strong><el-button link :loading="recordsLoading" @click="loadRecords">刷新记录</el-button></div></template>
       <el-alert v-if="recordsError" type="warning" :closable="false" :title="recordsError"/>
@@ -31,12 +31,20 @@ import { computed, onMounted, onUnmounted, onActivated, onDeactivated, ref } fro
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getDeploymentRuns, installDeploymentDevice, uninstallDeploymentDevice, parseBusinessRun, getDeploymentExport, exportDeploymentCredential, getDeployment, getDeploymentSnapshot, installDeployment, uninstallDeployment, deleteDeployment, getDeviceBusinessOrder, setDeviceBusinessOrder } from '@/api/business';
-import type { BusinessExportProjection, DeploymentBusinessSnapshot, DeploymentCredentialExport, DeploymentOperationResult, DeploymentPreflight, DeploymentStatus, BusinessRun } from '@/api/business';
+import { getDeploymentExport, exportDeploymentCredential, getDeployment, getDeploymentSnapshot, installDeployment, uninstallDeployment, deleteDeployment, installDeploymentDevice, uninstallDeploymentDevice } from '@/api/sdui-deployments';
+import { getDeploymentRuns } from '@/api/sdui-runs';
+import { parseBusinessRun } from '@/sdui/businessRuns';
+import { getDeviceBusinessOrder, setDeviceBusinessOrder } from '@/api/sdui-devices';
+import { errorDetails, isMessageBoxCancellation } from '@/utils/errorDetails';
+import type { BusinessExportProjection, DeploymentBusinessSnapshot, DeploymentCredentialExport, DeploymentOperationResult, DeploymentPreflight, DeploymentStatus } from '@/types/sdui-deployment';
+import type { BusinessRun } from '@/types/sdui-run';
+import { deploymentDeviceStatusLabel, deploymentDeviceStatusType, deploymentStatusLabel } from '@/sdui/businessStatus';
+import { createDeploymentRecordLoader } from '@/sdui/deploymentMonitor';
+import { createDeploymentExportController } from '@/sdui/deploymentExport';
 // AppMain keys cached pages by fullPath; each instance must retain its own deployment identity.
 const route = useRoute(); const router = useRouter(); const deploymentId = ref(String(route.params.deploymentId || ''));
 const sourceBusinessId = typeof route.query.businessId === 'string' ? route.query.businessId : undefined;
-const status = ref<DeploymentStatus | null>(null); const deploymentListLocation = computed(() => ({ name: 'SduiDeployments', query: { businessId: sourceBusinessId || status.value?.businessId } })); const loading = ref(false); const operationLoading = ref(false); const preflightLoading = ref(false); const error = ref(''); const preflightError = ref(''); const preflight = ref<DeploymentPreflight | null>(null); const credential = ref<DeploymentCredentialExport | null>(null); const credentialVisible = ref(false); const exportLoading = ref(false); const exportError = ref(''); const businessExport = ref<BusinessExportProjection | null>(null); const operationResult = ref<{ kind: 'install' | 'uninstall'; result: DeploymentOperationResult } | null>(null);
+const status = ref<DeploymentStatus | null>(null); const deploymentListLocation = computed(() => ({ name: 'SduiDeployments', query: { businessId: sourceBusinessId || status.value?.businessId }})); const loading = ref(false); const operationLoading = ref(false); const preflightLoading = ref(false); const error = ref(''); const preflightError = ref(''); const preflight = ref<DeploymentPreflight | null>(null); const credential = ref<DeploymentCredentialExport | null>(null); const credentialVisible = ref(false); const exportLoading = ref(false); const exportError = ref(''); const businessExport = ref<BusinessExportProjection | null>(null); const operationResult = ref<{ kind: 'install' | 'uninstall'; result: DeploymentOperationResult } | null>(null);
 const records = ref<BusinessRun[]>([]);
 const snapshot = ref<DeploymentBusinessSnapshot | null>(null);
 const snapshotError = ref('');
@@ -53,10 +61,45 @@ const recordsError = ref('');
 const recordPage = ref(0);
 const recordPageSize = 20;
 const recordTotal = ref(0);
+const exportController = createDeploymentExportController({
+  getDeployment: () => status.value,
+  getDeploymentId: () => deploymentId.value,
+  getGeneration: () => deploymentLoadGeneration,
+  isBusy: () => exportLoading.value || loading.value || operationLoading.value,
+  confirm: () => ElMessageBox.confirm(
+    '继续导出会生成新密钥，并立即撤销此部署此前的外部调用密钥。请准备好同步更新所有调用端。',
+    '轮换外部调用密钥', { type: 'warning', confirmButtonText: '生成并导出', cancelButtonText: '取消' }
+  ),
+  isCancellation: isMessageBoxCancellation,
+  message: cause => errorDetails(cause).message || '',
+  readTemplate: getDeploymentExport,
+  rotateCredential: exportDeploymentCredential,
+  dataOf: response => dataOf(response as { data?: unknown }),
+  setLoading: value => { exportLoading.value = value; },
+  setError: value => { exportError.value = value; },
+  setCredential: value => { credential.value = value as DeploymentCredentialExport | null; },
+  setBusinessExport: value => { businessExport.value = value as BusinessExportProjection | null; },
+  setVisible: value => { credentialVisible.value = value; },
+  notifySuccess: message => ElMessage.success(message)
+});
+const recordLoader = createDeploymentRecordLoader({
+  getDeploymentId: () => deploymentId.value,
+  getPage: () => recordPage.value,
+  pageSize: recordPageSize,
+  read: getDeploymentRuns,
+  parse: parseBusinessRun,
+  belongsToDeployment: (record, id) => record.deploymentId === id,
+  setRecords: value => { records.value = value; },
+  setTotal: value => { recordTotal.value = value; },
+  setLoading: value => { recordsLoading.value = value; },
+  setError: value => { recordsError.value = value; },
+  getErrorMessage: cause => errorDetails(cause).message || ''
+});
 const autoRefresh = ref(true);
 const recordDevice = ref('');
 const recordStatus = ref('');
-let recordsRequest = 0;
+let monitorActive = false;
+let monitorGeneration = 0;
 const executionRecords = computed(() => records.value.filter(row => !row.triggerSource.startsWith('maintenance:')));
 const visibleRecords = computed(() => executionRecords.value.filter(row =>
   (!recordDevice.value || row.deviceId === recordDevice.value) && (!recordStatus.value || row.status === recordStatus.value)));
@@ -67,28 +110,13 @@ function instanceLabel(id: string) {
   return label ? `${label.businessName} · #${label.deploymentSerial}` : '业务信息不可用';
 }
 function devicePreflight(deviceId: string) { return preflight.value?.devices.find(row => row.deviceId === deviceId); }
-async function loadRecords() {
-  const id = ++recordsRequest;
-  const deployment = deploymentId.value;
-  recordsLoading.value = true;
-  try {
-    const data = dataOf(await getDeploymentRuns(deployment, recordPage.value, recordPageSize));
-    if (id !== recordsRequest || deployment !== deploymentId.value) return;
-    if (!data || data.deploymentId !== deployment || !Array.isArray(data.runs) || !Number.isInteger(data.totalElements)) throw new Error('执行记录格式无效');
-    const result = data.runs.map(row => parseBusinessRun(row));
-    if (result.some(row => row.deploymentId !== deployment)) throw new Error('执行记录不属于此部署');
-    records.value = result;
-    recordTotal.value = data.totalElements;
-    recordsError.value = '';
-  } catch (cause: any) { if (id === recordsRequest) recordsError.value = cause.message || '执行记录读取失败'; }
-  finally { if (id === recordsRequest) recordsLoading.value = false; }
-}
+const loadRecords = recordLoader.loadRecords;
 function changeRecordPage(page: number) { recordPage.value = page - 1; void loadRecords(); }
 function editSourceBusiness() {
   const businessId = status.value?.businessId;
   if (!businessId) return;
   snapshotVisible.value = false;
-  void router.push({ name: 'SduiBusinessEditor', params: { businessId } });
+  void router.push({ name: 'SduiBusinessEditor', params: { businessId }});
 }
 async function editDeviceOrder(deviceId: string) {
   orderDeviceId.value = deviceId;
@@ -100,15 +128,14 @@ async function editDeviceOrder(deviceId: string) {
   try {
     const response = dataOf(await getDeviceBusinessOrder(deviceId));
     if (deviceId !== orderDeviceId.value) return;
-    if (!response || response.deviceId !== deviceId || !Array.isArray(response.instanceOrder)
-      || response.instanceOrder.some((id) => typeof id !== 'string')
-      || new Set(response.instanceOrder).size !== response.instanceOrder.length
-      || !response.instanceLabels || typeof response.instanceLabels !== 'object'
-      || !response.instanceOrder.includes(deploymentId.value)) throw new Error('设备业务顺序响应格式无效');
+    if (!response || response.deviceId !== deviceId || !Array.isArray(response.instanceOrder) ||
+      response.instanceOrder.some((id) => typeof id !== 'string') ||
+      new Set(response.instanceOrder).size !== response.instanceOrder.length ||
+      !response.instanceLabels || typeof response.instanceLabels !== 'object' ||
+      !response.instanceOrder.includes(deploymentId.value)) throw new Error('设备业务顺序响应格式无效');
     editableInstanceOrder.value = [...response.instanceOrder];
     instanceLabels.value = response.instanceLabels;
-  } catch (cause: any) { orderError.value = cause.message || '读取设备业务顺序失败'; }
-  finally { orderLoading.value = false; }
+  } catch (cause: unknown) { orderError.value = errorDetails(cause).message || '读取设备业务顺序失败'; } finally { orderLoading.value = false; }
 }
 function moveInstance(index: number, offset: number) {
   const target = index + offset;
@@ -130,8 +157,7 @@ async function saveDeviceOrder() {
     ElMessage.success('主业务顺序已应用');
     orderVisible.value = false;
     await load();
-  } catch (cause: any) { orderError.value = cause.message || '保存业务顺序失败'; }
-  finally { orderSaving.value = false; }
+  } catch (cause: unknown) { orderError.value = errorDetails(cause).message || '保存业务顺序失败'; } finally { orderSaving.value = false; }
 }
 async function installOneDevice(deviceId: string) {
   const deployment = deploymentId.value;
@@ -145,8 +171,7 @@ async function installOneDevice(deviceId: string) {
     if (data.failed || data.offline) ElMessage.warning('设备未完成安装，请查看维护记录');
     else ElMessage.success('设备已确认安装');
     await load();
-  } catch (cause: any) { ElMessage.error(cause.message || '重新下发失败'); }
-  finally { if (requestId === operationRequestId) operationLoading.value = false; }
+  } catch (cause: unknown) { ElMessage.error(errorDetails(cause).message || '重新下发失败'); } finally { if (requestId === operationRequestId) operationLoading.value = false; }
 }
 async function uninstallOneDevice(deviceId: string) {
   const deployment = deploymentId.value;
@@ -160,13 +185,15 @@ async function uninstallOneDevice(deviceId: string) {
     if (data.failed || data.offline) ElMessage.warning('设备未完成卸载，请查看设备状态');
     else ElMessage.success('设备已卸载，记录已保留');
     await load();
-  } catch (cause: any) {
-    if (cause !== 'cancel' && cause !== 'close') ElMessage.error(cause.message || '设备卸载失败');
+  } catch (cause: unknown) {
+    if (!isMessageBoxCancellation(cause)) ElMessage.error(errorDetails(cause).message || '设备卸载失败');
   } finally { if (requestId === operationRequestId) operationLoading.value = false; }
 }
 let monitorTimer: ReturnType<typeof setInterval> | undefined;
 function startMonitoring() {
   if (monitorTimer) return;
+  monitorActive = true;
+  monitorGeneration++;
   monitorTimer = setInterval(() => {
     if (autoRefresh.value && !operationLoading.value && !exportLoading.value && !loading.value && !recordsLoading.value) void refreshMonitoring();
   }, 5000);
@@ -174,25 +201,32 @@ function startMonitoring() {
 async function refreshMonitoring() {
   const deployment = deploymentId.value;
   const generation = deploymentLoadGeneration;
-  await loadRecords();
-  if (operationLoading.value || exportLoading.value || loading.value || deployment !== deploymentId.value || generation !== deploymentLoadGeneration) return;
+  const monitorRequestGeneration = monitorGeneration;
+  const isCurrent = () => monitorActive && monitorRequestGeneration === monitorGeneration;
+  await loadRecords(isCurrent);
+  if (!isCurrent() || operationLoading.value || exportLoading.value || loading.value || deployment !== deploymentId.value || generation !== deploymentLoadGeneration) return;
   try {
     const data = dataOf(await getDeployment(deployment));
-    if (operationLoading.value || exportLoading.value || generation !== deploymentLoadGeneration || deployment !== deploymentId.value) return;
+    if (!isCurrent() || operationLoading.value || exportLoading.value || generation !== deploymentLoadGeneration || deployment !== deploymentId.value) return;
     if (!isDeploymentStatus(data, deployment)) throw new Error('部署状态格式无效');
     status.value = data;
     updateDeviceAvailability(data);
-  } catch (cause: any) { if (deployment === deploymentId.value && generation === deploymentLoadGeneration) error.value = cause.message || '部署状态更新失败'; }
+  } catch (cause: unknown) { if (isCurrent() && deployment === deploymentId.value && generation === deploymentLoadGeneration) error.value = errorDetails(cause).message || '部署状态更新失败'; }
 }
-function stopMonitoring() { if (monitorTimer) clearInterval(monitorTimer); monitorTimer = undefined; }
+function stopMonitoring() {
+  monitorActive = false;
+  monitorGeneration++;
+  recordLoader.invalidate();
+  if (monitorTimer) clearInterval(monitorTimer);
+  monitorTimer = undefined;
+}
 onMounted(startMonitoring);
 onActivated(startMonitoring);
 onDeactivated(stopMonitoring);
-onUnmounted(() => { stopMonitoring(); recordsRequest++; });
+onUnmounted(stopMonitoring);
 
 let deploymentLoadGeneration = 0;
 let operationRequestId = 0;
-let exportRequestId = 0;
 function dataOf<T>(response: { data?: T } | null | undefined): T | undefined { return response?.data; }
 const deviceRows = computed(() => {
   const deployment = status.value;
@@ -211,41 +245,41 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 function isDeploymentStatus(value: unknown, expectedId: string): value is DeploymentStatus {
-  if (!isRecord(value) || value.deploymentId !== expectedId
-    || typeof value.businessId !== 'string'
-    || typeof value.businessName !== 'string'
-    || !Number.isInteger(value.deploymentSerial) || (value.deploymentSerial as number) < 1
-    || !['active', 'stopped'].includes(String(value.status)) || !Array.isArray(value.deviceIds)
-    || !value.deviceIds.every((id) => typeof id === 'string' && id.length > 0)
-    || new Set(value.deviceIds).size !== value.deviceIds.length
-    || !isRecord(value.deviceStatuses) || !isRecord(value.slotBindings)
-    || !(value.slotBindings.local === null || typeof value.slotBindings.local === 'string')
-    || !(value.slotBindings.target == null || typeof value.slotBindings.target === 'string')
-    || typeof value.slotBindings.local !== 'string'
-    || !value.deviceIds.includes(value.slotBindings.local)
-    || (typeof value.slotBindings.target === 'string' && !value.deviceIds.includes(value.slotBindings.target))
-    || !(value.deployedAt === null || typeof value.deployedAt === 'string')
-    || !(value.stoppedAt === null || typeof value.stoppedAt === 'string')) return false;
+  if (!isRecord(value) || value.deploymentId !== expectedId ||
+    typeof value.businessId !== 'string' ||
+    typeof value.businessName !== 'string' ||
+    !Number.isInteger(value.deploymentSerial) || (value.deploymentSerial as number) < 1 ||
+    !['active', 'stopped'].includes(String(value.status)) || !Array.isArray(value.deviceIds) ||
+    !value.deviceIds.every((id) => typeof id === 'string' && id.length > 0) ||
+    new Set(value.deviceIds).size !== value.deviceIds.length ||
+    !isRecord(value.deviceStatuses) || !isRecord(value.slotBindings) ||
+    !(value.slotBindings.local === null || typeof value.slotBindings.local === 'string') ||
+    !(value.slotBindings.target == null || typeof value.slotBindings.target === 'string') ||
+    typeof value.slotBindings.local !== 'string' ||
+    !value.deviceIds.includes(value.slotBindings.local) ||
+    (typeof value.slotBindings.target === 'string' && !value.deviceIds.includes(value.slotBindings.target)) ||
+    !(value.deployedAt === null || typeof value.deployedAt === 'string') ||
+    !(value.stoppedAt === null || typeof value.stoppedAt === 'string')) return false;
   const allowedStates = new Set(['ok', 'failed', 'skipped', 'installing', 'uninstall_pending', 'uninstalled', 'uninstall_failed', 'uninstall_skipped']);
   const deviceIds = value.deviceIds as string[];
-  return Object.entries(value.deviceStatuses).every(([deviceId, item]) => deviceIds.includes(deviceId)
-    && isRecord(item) && typeof item.status === 'string' && allowedStates.has(item.status)
-    && (item.error == null || typeof item.error === 'string'));
+  return Object.entries(value.deviceStatuses).every(([deviceId, item]) => deviceIds.includes(deviceId) &&
+    isRecord(item) && typeof item.status === 'string' && allowedStates.has(item.status) &&
+    (item.error == null || typeof item.error === 'string'));
 }
 function isOperationResult(value: unknown, deployment: DeploymentStatus, kind: 'install' | 'uninstall'): value is DeploymentOperationResult {
-  if (!isRecord(value) || value.deploymentId !== deployment.deploymentId
-    || !['succeeded', 'offline', 'failed'].every((key) => typeof value[key] === 'number'
-      && Number.isInteger(value[key]) && (value[key] as number) >= 0)
-    || !Array.isArray(value.devices) || value.devices.length !== deployment.deviceIds.length) return false;
+  if (!isRecord(value) || value.deploymentId !== deployment.deploymentId ||
+    !['succeeded', 'offline', 'failed'].every((key) => typeof value[key] === 'number' &&
+      Number.isInteger(value[key]) && (value[key] as number) >= 0) ||
+    !Array.isArray(value.devices) || value.devices.length !== deployment.deviceIds.length) return false;
   if (kind === 'install' && (!Number.isInteger(value.online) || (value.online as number) < 0)) return false;
   const seen = new Set<string>();
   let succeeded = 0;
   let offline = 0;
   let failed = 0;
   for (const item of value.devices) {
-    if (!isRecord(item) || typeof item.deviceId !== 'string' || !deployment.deviceIds.includes(item.deviceId)
-      || seen.has(item.deviceId) || typeof item.role !== 'string' || typeof item.status !== 'string'
-      || !(item.error == null || typeof item.error === 'string')) return false;
+    if (!isRecord(item) || typeof item.deviceId !== 'string' || !deployment.deviceIds.includes(item.deviceId) ||
+      seen.has(item.deviceId) || typeof item.role !== 'string' || typeof item.status !== 'string' ||
+      !(item.error == null || typeof item.error === 'string')) return false;
     const expectedRole = item.deviceId === deployment.slotBindings.local ? 'local' : 'target';
     if (item.role !== expectedRole) return false;
     seen.add(item.deviceId);
@@ -261,32 +295,21 @@ function isOperationResult(value: unknown, deployment: DeploymentStatus, kind: '
       else offline++;
     }
   }
-  return deployment.deviceIds.every((id) => seen.has(id))
-    && succeeded === value.succeeded && offline === value.offline && failed === value.failed
-    && (kind === 'uninstall' || value.online === succeeded + failed);
+  return deployment.deviceIds.every((id) => seen.has(id)) &&
+    succeeded === value.succeeded && offline === value.offline && failed === value.failed &&
+    (kind === 'uninstall' || value.online === succeeded + failed);
 }
 const activeInstallLeaseDevices = computed(() => preflight.value?.devices.filter(device => device.blockingReason === 'deployment_install_in_progress') || []);
-const uninstallBlocked = computed(() => status.value?.status === 'active'
-  && (!preflight.value || preflightLoading.value || Boolean(preflightError.value) || activeInstallLeaseDevices.value.length > 0));
+const uninstallBlocked = computed(() => status.value?.status === 'active' &&
+  (!preflight.value || preflightLoading.value || Boolean(preflightError.value) || activeInstallLeaseDevices.value.length > 0));
 const uninstallBlockReason = computed(() => activeInstallLeaseDevices.value.length
   ? '设备安装租约仍有效，后端暂不接受卸载。等待安装结束后重试。'
   : '卸载前需要最新的设备状态；请刷新状态后再试。');
 const canInstall = computed(() => status.value?.status === 'active' && Boolean(preflight.value?.devices.some(device => device.willDeploy)));
-const canUninstall = computed(() => status.value?.status === 'active'
-  || (status.value?.status === 'stopped' && deviceRows.value.some(row => ['uninstall_pending', 'uninstall_failed', 'uninstall_skipped'].includes(row.status))));
-const canDelete = computed(() => status.value?.status === 'stopped'
-  && deviceRows.value.every(row => row.status === 'uninstalled'));
-function tagType(value?: string) {
-  if (['ok', 'uninstalled', 'installed', 'active', 'success'].includes(value || '')) return 'success';
-  if (['failed', 'uninstall_failed', 'error', 'blocked'].includes(value || '')) return 'danger';
-  return 'warning';
-}
-function statusLabel(value?: string) {
-  return ({ ok: '已安装', failed: '失败', skipped: '离线跳过', installing: '安装中', pending: '待安装', uninstalled: '已卸载', uninstall_pending: '卸载中', uninstall_failed: '卸载失败', uninstall_skipped: '卸载跳过', active: '运行中', stopped: '已停止', failed_deployment: '部署失败' } as Record<string, string>)[value || ''] || value || '未知状态';
-}
-function deploymentStatusLabel(value?: string) {
-  return ({ active: '活动', stopped: '已停止', failed: '部署失败' } as Record<string, string>)[value || ''] || value || '读取中';
-}
+const canUninstall = computed(() => status.value?.status === 'active' ||
+  (status.value?.status === 'stopped' && deviceRows.value.some(row => ['uninstall_pending', 'uninstall_failed', 'uninstall_skipped'].includes(row.status))));
+const canDelete = computed(() => status.value?.status === 'stopped' &&
+  deviceRows.value.every(row => row.status === 'uninstalled'));
 function updateDeviceAvailability(deployment: DeploymentStatus) {
   const devices = deployment.deviceIds.map(deviceId => {
     const device = deployment.deviceStatuses[deviceId];
@@ -304,7 +327,7 @@ async function load() {
   if (exportLoading.value) return;
   const generation = ++deploymentLoadGeneration;
   if (records.value.some(row => row.deploymentId !== deploymentId.value)) records.value = [];
-  exportRequestId++;
+  exportController.invalidate();
   exportLoading.value = false;
   exportError.value = '';
   businessExport.value = null;
@@ -327,24 +350,23 @@ async function load() {
     status.value = deployment;
     try {
       const frozen = dataOf(await getDeploymentSnapshot(requestedDeploymentId));
-      if (!frozen || frozen.deploymentId !== requestedDeploymentId || frozen.businessId !== deployment.businessId
-        || typeof frozen.available !== 'boolean' || typeof frozen.sourceAvailable !== 'boolean'
-        || typeof frozen.differsFromSource !== 'boolean' || !frozen.definition || typeof frozen.definition !== 'object'
-        || Array.isArray(frozen.definition)) throw new Error('部署快照接口响应格式无效');
+      if (!frozen || frozen.deploymentId !== requestedDeploymentId || frozen.businessId !== deployment.businessId ||
+        typeof frozen.available !== 'boolean' || typeof frozen.sourceAvailable !== 'boolean' ||
+        typeof frozen.differsFromSource !== 'boolean' || !frozen.definition || typeof frozen.definition !== 'object' ||
+        Array.isArray(frozen.definition)) throw new Error('部署快照接口响应格式无效');
       snapshot.value = frozen;
-    } catch (cause: any) { snapshotError.value = cause.message || '部署快照读取失败'; }
+    } catch (cause: unknown) { snapshotError.value = errorDetails(cause).message || '部署快照读取失败'; }
     await loadRecords();
     updateDeviceAvailability(deployment);
-  } catch (cause: any) { if (generation === deploymentLoadGeneration && requestedDeploymentId === deploymentId.value) error.value = cause.message || '部署详情读取失败'; }
-  finally { if (generation === deploymentLoadGeneration) loading.value = false; }
+  } catch (cause: unknown) { if (generation === deploymentLoadGeneration && requestedDeploymentId === deploymentId.value) error.value = errorDetails(cause).message || '部署详情读取失败'; } finally { if (generation === deploymentLoadGeneration) loading.value = false; }
 }
 async function retryInstall() {
   const requestedDeploymentId = deploymentId.value;
   const deploymentSnapshot = status.value;
   if (!deploymentSnapshot || deploymentSnapshot.deploymentId !== requestedDeploymentId) return;
   const requestId = ++operationRequestId;
-  if (requestId !== operationRequestId || requestedDeploymentId !== deploymentId.value
-    || status.value?.deploymentId !== deploymentSnapshot.deploymentId) return;
+  if (requestId !== operationRequestId || requestedDeploymentId !== deploymentId.value ||
+    status.value?.deploymentId !== deploymentSnapshot.deploymentId) return;
   operationLoading.value = true;
   try {
     const result = dataOf(await installDeployment(requestedDeploymentId));
@@ -356,14 +378,12 @@ async function retryInstall() {
       ? `安装已处理但未全部成功：成功 ${result.succeeded}，离线 ${result.offline}，失败 ${result.failed}`
       : `部署安装完成：成功 ${result.succeeded} 台`);
     await load();
-  }
-  catch (cause: any) {
+  } catch (cause: unknown) {
     if (requestId === operationRequestId && requestedDeploymentId === deploymentId.value) {
-      ElMessage.error(cause.message || '重新下发失败');
+      ElMessage.error(errorDetails(cause).message || '重新下发失败');
       await load();
     }
-  }
-  finally { if (requestId === operationRequestId) operationLoading.value = false; }
+  } finally { if (requestId === operationRequestId) operationLoading.value = false; }
 }
 async function uninstall() {
   const requestedDeploymentId = deploymentId.value;
@@ -377,8 +397,8 @@ async function uninstall() {
       retrying ? '重试卸载' : '卸载业务',
       { type: 'warning', confirmButtonText: retrying ? '重试卸载' : '确认卸载' }
     );
-    if (requestId !== operationRequestId || requestedDeploymentId !== deploymentId.value
-      || status.value?.deploymentId !== deploymentSnapshot.deploymentId) return;
+    if (requestId !== operationRequestId || requestedDeploymentId !== deploymentId.value ||
+      status.value?.deploymentId !== deploymentSnapshot.deploymentId) return;
     operationLoading.value = true;
     const result = dataOf(await uninstallDeployment(requestedDeploymentId));
     if (!isOperationResult(result, deploymentSnapshot, 'uninstall')) throw new Error('卸载接口响应与部署绑定设备或汇总计数不一致');
@@ -389,10 +409,10 @@ async function uninstall() {
       ? `卸载已处理但未全部成功：成功 ${result.succeeded}，离线 ${result.offline}，失败 ${result.failed}`
       : `部署卸载完成：成功 ${result.succeeded} 台`);
     await load();
-  } catch (cause: any) {
-    if (requestId === operationRequestId && requestedDeploymentId === deploymentId.value
-      && cause !== 'cancel' && cause !== 'close') {
-      ElMessage.error(cause.message || '卸载失败');
+  } catch (cause: unknown) {
+    if (requestId === operationRequestId && requestedDeploymentId === deploymentId.value &&
+      cause !== 'cancel' && cause !== 'close') {
+      ElMessage.error(errorDetails(cause).message || '卸载失败');
       await load();
     }
   } finally { if (requestId === operationRequestId) operationLoading.value = false; }
@@ -407,76 +427,11 @@ async function deleteCurrentDeployment() {
     await deleteDeployment(deploymentIdToDelete);
     ElMessage.success('部署记录已删除');
     await router.replace(deploymentListLocation.value);
-  } catch (cause: any) {
-    if (cause !== 'cancel' && cause !== 'close') ElMessage.error(cause.message || '删除部署记录失败');
+  } catch (cause: unknown) {
+    if (!isMessageBoxCancellation(cause)) ElMessage.error(errorDetails(cause).message || '删除部署记录失败');
   } finally { operationLoading.value = false; }
 }
-async function exportIntegration() {
-  const deployment = status.value;
-  const requestedDeploymentId = deploymentId.value;
-  if (!deployment || deployment.deploymentId !== requestedDeploymentId || deployment.status !== 'active'
-    || exportLoading.value || loading.value || operationLoading.value) return;
-  exportLoading.value = true;
-  exportError.value = '';
-  try {
-    await ElMessageBox.confirm(
-      '继续导出会生成新密钥，并立即撤销此部署此前的外部调用密钥。请准备好同步更新所有调用端。',
-      '轮换外部调用密钥', { type: 'warning', confirmButtonText: '生成并导出', cancelButtonText: '取消' }
-    );
-  } catch (cause: any) {
-    if (cause !== 'cancel' && cause !== 'close') exportError.value = cause.message || '导出已取消';
-    exportLoading.value = false;
-    return;
-  }
-
-  const requestId = ++exportRequestId;
-  const generation = deploymentLoadGeneration;
-  exportLoading.value = true;
-  exportError.value = '';
-  credential.value = null;
-  businessExport.value = null;
-  try {
-    const template = dataOf<BusinessExportProjection>(await getDeploymentExport(requestedDeploymentId));
-    if (requestId !== exportRequestId || generation !== deploymentLoadGeneration
-      || requestedDeploymentId !== deploymentId.value) return;
-    if (!template || template.businessId !== deployment.businessId || !Array.isArray(template.instances)
-      || typeof template.tenantId !== 'string' || typeof template.instructions !== 'string'
-      || template.instances.some((instance) => !instance || typeof instance !== 'object' || Array.isArray(instance)
-        || typeof instance.deviceId !== 'string'
-        || typeof instance.credential !== 'string')) {
-      throw new Error('部署导出模板响应格式无效');
-    }
-    const instance = template.instances.find((candidate) => candidate.deviceId === deployment.slotBindings.local);
-    if (!instance) throw new Error('导出模板中没有当前部署的本机实例，请检查部署快照');
-
-    const exported = dataOf<DeploymentCredentialExport>(await exportDeploymentCredential(requestedDeploymentId));
-    if (requestId !== exportRequestId || generation !== deploymentLoadGeneration
-      || requestedDeploymentId !== deploymentId.value) return;
-    const expectedEndpoint = `/api/v1/sdui/businesses/${encodeURIComponent(deployment.businessId)}/triggers/{triggerName}`;
-    if (!exported || exported.deploymentId !== deployment.deploymentId
-      || exported.businessId !== deployment.businessId || exported.deviceId !== deployment.slotBindings.local
-      || exported.endpoint !== expectedEndpoint || typeof exported.tenantId !== 'string'
-      || typeof exported.credential !== 'string' || !exported.credential.startsWith('xc_')
-      || !Array.isArray(exported.triggers) || !exported.triggers.length
-      || !exported.triggers.every((name) => typeof name === 'string' && name.length > 0)) {
-      throw new Error('密钥轮换接口响应与当前部署不匹配');
-    }
-    credential.value = exported;
-    businessExport.value = {
-      ...template,
-      name: deployment.businessName,
-      tenantId: exported.tenantId,
-      instances: [{ ...instance, credential: exported.credential }]
-    };
-    credentialVisible.value = true;
-    ElMessage.success('新密钥已生成，旧密钥已撤销');
-  } catch (cause: any) {
-    if (requestId === exportRequestId && generation === deploymentLoadGeneration
-      && requestedDeploymentId === deploymentId.value) exportError.value = cause.message || '生成集成模板失败';
-  } finally {
-    if (requestId === exportRequestId) exportLoading.value = false;
-  }
-}
+const exportIntegration = exportController.exportIntegration;
 async function copyBusinessExport() {
   if (!businessExport.value) return;
   const text = JSON.stringify(businessExport.value, null, 2);
@@ -551,7 +506,6 @@ function downloadSkill() {
 onMounted(load);
 
 </script>
-
 
 <style scoped>
 .console-heading{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:24px}.console-heading h1{font-size:24px;margin:12px 0}.console-heading p,.muted,.source-hint{color:#667085;font-size:12px}.page-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0}.metric-grid strong{display:block;font-size:28px;margin-top:12px}.metric-grid small{color:#667085}.console-card{margin-bottom:20px}.operation-heading{display:flex;justify-content:space-between;align-items:center}.snapshot-diff-tag{margin-left:10px;vertical-align:middle}.record-filters{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.record-filters .el-select{width:190px}.source-hint{display:block;margin-top:5px}.run-details{padding:16px 32px;background:#f8fafc}.run-details pre{font-size:12px;white-space:pre-wrap}.credential-button{margin-top:16px}.export-error{margin-top:12px}.exported-credential{display:block;overflow-wrap:anywhere;user-select:all;padding:8px;background:#f4f6f8}@media(max-width:800px){.metric-grid{grid-template-columns:repeat(2,1fr)}}

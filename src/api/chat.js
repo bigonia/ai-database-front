@@ -122,7 +122,7 @@ export async function fetchChatStream(data, onData, onFinish, onError) {
               // 尝试解析 JSON
               const json = JSON.parse(chunk);
               onData(json);
-            } catch (e) {
+            } catch {
               console.warn('非 JSON 数据块或解析失败:', chunk);
             }
           }

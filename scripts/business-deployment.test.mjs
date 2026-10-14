@@ -1,36 +1,96 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
-const vue = await readFile(new URL('../src/views/sdui/business/BusinessEditor.vue', import.meta.url), 'utf8');
-const source = vue.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
-const ast = ts.createSourceFile('editor.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-const functions = ['deployCurrent', 'isRecord', 'isDeploymentFrozen', 'isInstallResult', 'frozenDeviceRoles', 'dataOf']
- .map(name => ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(ast)).join('\n');
-const code = `export function harness(response, failure) {
- const ref = value => ({value});
- const definition=ref({}), deploymentLoading=ref(false), deploymentId=ref(''), freezeOutcomeUnknown=ref(false);
- const businessId=ref('biz'), hasTarget=ref(true), deploymentBindings=ref({localDeviceId:'A',targetDeviceId:'B'});
- const dirty=ref(false), validation=ref({ok:true}), version=ref(2), freezeResult=ref(null), installResult=ref(null), deploymentNotice=ref(null);
- let businessRouteGeneration=1, calls=[];
- const ElMessage={warning:()=>{}}, validate=async()=>true, writeFreezeOutcomeUnknown=()=>{};
- const deployBusiness=async(business,bindings)=>{calls.push({business,bindings});if(failure)throw failure;return {data:response};};
- ${functions}
- return {deployCurrent,calls,deploymentId,installResult,freezeOutcomeUnknown,deploymentNotice};
-}`;
-const compiled = ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {harness}=await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
-const result = offline => ({deployment:{deploymentId:'dep',businessId:'biz',businessVersion:2,localDeviceId:'A',targetDeviceIds:['B'],triggers:[],initialRunDuplicate:false},
- installation:{deploymentId:'dep',online:offline?1:2,offline:offline?1:0,succeeded:offline?1:2,failed:0,devices:[{deviceId:'A',role:'local',status:'ok',error:null},{deviceId:'B',role:'target',status:offline?'skipped':'ok',error:offline?'device_offline':null}]}});
-test('one deployment action installs both bound devices without another confirmation or request',async()=>{
- const h=harness(result(false));await h.deployCurrent();await h.deployCurrent();
- assert.equal(h.calls.length,1);assert.equal(h.deploymentId.value,'dep');assert.equal(h.installResult.value.succeeded,2);
+
+const source = await readFile(new URL('../src/sdui/businessDeployment.ts', import.meta.url), 'utf8');
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+const {
+  canStartBusinessDeployment,
+  executeBusinessDeployment,
+  isDeploymentFrozen,
+  isInstallResult
+} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+
+const frozen = {
+  deploymentId: 'deployment-1', businessId: 'business-1', localDeviceId: 'device-a',
+  targetDeviceIds: ['device-b'], triggers: [], initialRunDuplicate: false
+};
+
+function installation(offline = false) {
+  return {
+    deploymentId: frozen.deploymentId,
+    offline: offline ? 1 : 0,
+    succeeded: offline ? 1 : 2,
+    failed: 0,
+    devices: [
+      { deviceId: 'device-a', role: 'local', status: 'ok', error: null },
+      { deviceId: 'device-b', role: 'target', status: offline ? 'skipped' : 'ok', error: offline ? 'device_offline' : null }
+    ]
+  };
+}
+
+function attempt(overrides = {}) {
+  let current = true;
+  const value = {
+    businessId: 'business-1', generation: 1,
+    isCurrent: () => current,
+    isDirty: () => false,
+    getValidation: () => ({ ok: true, errorCount: 0, warningCount: 0, problems: [] }),
+    getValidationError: () => '',
+    getBindings: () => ({ revision: 3, localDeviceId: 'device-a', targetDeviceId: 'device-b', hasTarget: true }),
+    validate: async () => true,
+    setCurrent: value => { current = value; },
+    ...overrides
+  };
+  return value;
+}
+
+test('deployment receipt and device results must match the requested binding snapshot', () => {
+  const bindings = { localDeviceId: 'device-a', targetDeviceId: 'device-b' };
+  assert.equal(isDeploymentFrozen(frozen, 'business-1', bindings), true);
+  assert.equal(isDeploymentFrozen({ ...frozen, businessId: 'other' }, 'business-1', bindings), false);
+  assert.equal(isInstallResult(installation(), frozen.deploymentId, frozen), true);
+  assert.equal(isInstallResult({ ...installation(), succeeded: 9 }, frozen.deploymentId, frozen), false);
 });
-test('offline target keeps the deployment and displays waiting for online',async()=>{
- const h=harness(result(true));await h.deployCurrent();
- assert.equal(h.deploymentId.value,'dep');assert.equal(h.installResult.value.offline,1);assert.match(h.deploymentNotice.value.message,/等待上线 1/);
+
+test('one deployment attempt submits once and accepts the validated device results', async () => {
+  const calls = [];
+  const result = await executeBusinessDeployment(attempt(), async (businessId, bindings) => {
+    calls.push({ businessId, bindings });
+    return { data: { deployment: frozen, installation: installation() }};
+  });
+  assert.equal(result.kind, 'success');
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], {
+    businessId: 'business-1',
+    bindings: { expectedRevision: 3, localDeviceId: 'device-a', targetDeviceId: 'device-b' }
+  });
 });
-test('an uncertain network response prevents silently creating a second deployment',async()=>{
- const h=harness(null,new Error('network'));await h.deployCurrent();await h.deployCurrent();
- assert.equal(h.calls.length,1);assert.equal(h.freezeOutcomeUnknown.value,true);
+
+test('offline targets remain part of the deployment receipt and report as skipped', async () => {
+  const result = await executeBusinessDeployment(attempt(), async () => ({
+    data: { deployment: frozen, installation: installation(true) }
+  }));
+  assert.equal(result.kind, 'success');
+  assert.equal(result.result.installation.offline, 1);
+  assert.equal(result.result.installation.devices[1].status, 'skipped');
+});
+
+test('an uncertain freeze response blocks another deployment attempt', async () => {
+  const value = attempt();
+  let outcomeUnknown = false;
+  let calls = 0;
+  const result = await executeBusinessDeployment(value, async () => {
+    calls += 1;
+    throw new Error('network');
+  });
+  if (result.kind === 'failure' && result.outcomeUnknown) outcomeUnknown = true;
+  assert.equal(result.kind, 'failure');
+  assert.equal(outcomeUnknown, true);
+  assert.equal(canStartBusinessDeployment({ loading: false, deploymentId: '', outcomeUnknown }), false);
+  assert.equal(calls, 1);
 });

@@ -1,4 +1,4 @@
-import type { BusinessDefinition, BusinessFlow, ActionCatalogEntry } from '@/api/business';
+import type { BusinessDefinition, BusinessFlow, ActionCatalogEntry } from '@/types/sdui-business';
 
 export interface FlowResource {
   name: string;
@@ -11,7 +11,7 @@ export interface FlowResource {
   origin: string;
 }
 
-/** Resources retain the latest result across flows and devices in a business deployment. */
+/** Resources belong to one invocation; consumers can only read preceding producers. */
 export function collectFlowResources(definition: BusinessDefinition | null, actions: ActionCatalogEntry[]): FlowResource[] {
   return (definition?.flows || []).flatMap(flow => {
     const resources: FlowResource[] = [];
@@ -36,8 +36,8 @@ export function collectFlowResources(definition: BusinessDefinition | null, acti
   });
 }
 
-export function availableFlowResources(resources: FlowResource[], _flowKey: string, _stepIndex: number, type?: string) {
-  return resources.filter(resource => !type || resource.type.toLowerCase() === type.toLowerCase());
+export function availableFlowResources(resources: FlowResource[], flowKey: string, stepIndex: number) {
+  return resources.filter(resource => resource.flowKey === flowKey && resource.stepIndex < stepIndex);
 }
 
 export function registerStepResources(flow: BusinessFlow, stepIndex: number, outputs: Record<string, string>) {
@@ -47,11 +47,45 @@ export function registerStepResources(flow: BusinessFlow, stepIndex: number, out
   step.produces ||= {};
   for (const slot of Object.keys(outputs)) {
     if (step.produces[slot]) continue;
-    const base = slot === 'audio' ? '采集音频' : slot === 'text' ? '识别文本' : slot;
+    const base = slot === 'result' ? '采集结果' : slot === 'audio' ? '音频' : slot === 'text' ? '文本' : slot;
     let name = base;
     let suffix = 2;
     while (references.has(`@${flow.key}.${name}`)) name = `${base}${suffix++}`;
     step.produces[slot] = `@${flow.key}.${name}`;
     references.add(step.produces[slot]);
+  }
+}
+
+/** 将可编辑草稿整理为一次采集一个产物；所有消费者引用同一个产物。 */
+export function normalizeRecordingProducts(definition: BusinessDefinition) {
+  const aliases = new Map<string, string>();
+  for (const flow of definition.flows) {
+    for (const step of flow.steps) {
+      if (step.action !== 'audio.record') continue;
+      const outputs = step.produces || {};
+      const reference = outputs.result || outputs.audio || outputs.text;
+      if (reference) {
+        for (const value of Object.values(outputs)) aliases.set(value, reference);
+        step.produces = { result: reference };
+      }
+    }
+  }
+  for (const flow of definition.flows) {
+    for (const step of flow.steps) {
+      for (const arguments_ of [step.with, step.bind]) {
+        for (const [key, value] of Object.entries(arguments_ || {})) {
+          if (value === '@') delete arguments_[key];
+          else if (typeof value === 'string' && aliases.has(value)) arguments_[key] = aliases.get(value) || value;
+        }
+      }
+      if (step.action === 'audio.play' && !Object.prototype.hasOwnProperty.call(step.with || {}, 'source')) {
+        const input = ['audio', 'text'].find(key => Object.prototype.hasOwnProperty.call(step.with || {}, key));
+        if (input) {
+          step.with.source = step.with[input];
+          delete step.with.audio;
+          delete step.with.text;
+        }
+      }
+    }
   }
 }

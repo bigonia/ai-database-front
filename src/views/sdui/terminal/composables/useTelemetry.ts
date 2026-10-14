@@ -1,6 +1,8 @@
 import { ref, reactive } from 'vue';
 import { getDeviceTelemetry, getDeviceTelemetryTrends } from '@/api/sdui';
 import { ElMessage } from 'element-plus';
+import type { TrendSeries } from '@/types/sdui-dashboard';
+import { errorDetails } from '@/utils/errorDetails';
 
 export function useTelemetry() {
   const telemetryRows = ref<Record<string, unknown>[]>([]);
@@ -66,10 +68,10 @@ export function useTelemetry() {
       telemetryRows.value = data.content as Record<string, unknown>[];
       telemetryPagination.total = totalElements;
       telemetryPagination.totalPages = totalPages;
-    } catch (cause: any) {
+    } catch (cause: unknown) {
       if (requestId !== historyRequestId) return;
       telemetryRows.value = [];
-      errors.table = cause.message || '加载遥测历史失败';
+      errors.table = errorDetails(cause).message || '加载遥测历史失败';
       ElMessage.error(errors.table);
     } finally {
       if (requestId === historyRequestId) loading.table = false;
@@ -93,10 +95,10 @@ export function useTelemetry() {
       const data = res?.data as unknown;
       if (!isTrendSeries(data, deviceId, range)) throw new Error('遥测趋势接口响应格式无效');
       trendData.value = data;
-    } catch (cause: any) {
+    } catch (cause: unknown) {
       if (requestId !== trendsRequestId) return;
       trendData.value = null;
-      errors.trends = cause.message || '加载趋势数据失败';
+      errors.trends = errorDetails(cause).message || '加载趋势数据失败';
       ElMessage.error(errors.trends);
     } finally {
       if (requestId === trendsRequestId) loading.trends = false;
@@ -157,8 +159,8 @@ function isTelemetryPage(
   if (typeof value.first !== 'boolean' || typeof value.last !== 'boolean' || typeof value.empty !== 'boolean') return false;
   if (value.content.length > requestedSize || value.empty !== (value.content.length === 0)) return false;
   const expectedPages = value.totalElements === 0 ? 0 : Math.ceil(Number(value.totalElements) / requestedSize);
-  if (value.totalPages !== expectedPages || value.first !== (requestedPage === 0)
-    || value.last !== (expectedPages === 0 || requestedPage >= expectedPages - 1)) return false;
+  if (value.totalPages !== expectedPages || value.first !== (requestedPage === 0) ||
+    value.last !== (expectedPages === 0 || requestedPage >= expectedPages - 1)) return false;
   return value.content.every((row) => {
     if (!isRecord(row) || row.deviceId !== deviceId || !isNonNegativeInteger(row.id) || row.id === 0) return false;
     if (row.ip !== null && typeof row.ip !== 'string') return false;

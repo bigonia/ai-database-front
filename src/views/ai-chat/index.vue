@@ -252,21 +252,18 @@ import { getAgentList } from '@/api/agent';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
-  Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
-  ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
+  Promotion, UserFilled, MoreFilled, CopyDocument, Collection, ArrowDown, Tools
 } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 
 export default {
   name: 'AiChat',
   components: {
-    Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
-    ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
+    Promotion, UserFilled, MoreFilled, CopyDocument, Collection, ArrowDown, Tools
   },
   setup() {
     return {
-      Promotion, UserFilled, Plus, Expand, Fold, MoreFilled,
-      ChatLineRound, Document, CopyDocument, Collection, ArrowDown, Tools
+      Promotion, UserFilled, MoreFilled, CopyDocument, Collection, ArrowDown, Tools
     };
   },
   data() {
@@ -365,7 +362,7 @@ export default {
         } else {
           this.handleCreateChat();
         }
-      } catch (error) {
+      } catch {
         this.chatHistory = [];
       } finally {
         this.isListLoading = false;
@@ -464,7 +461,7 @@ export default {
           if (chat) chat.title = value;
           if (this.currentChatId === chatId) this.currentChatTitle = value;
           ElMessage.success('重命名成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('重命名失败');
         }
       }).catch(() => {});
@@ -481,10 +478,11 @@ export default {
           const index = this.chatHistory.findIndex(c => c.id === chatId);
           if (index !== -1) this.chatHistory.splice(index, 1);
           if (this.currentChatId === chatId) {
-            this.chatHistory.length > 0 ? this.switchChat(this.chatHistory[0].id) : this.handleCreateChat();
+            if (this.chatHistory.length > 0) this.switchChat(this.chatHistory[0].id);
+            else this.handleCreateChat();
           }
           ElMessage.success('删除成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('删除失败');
         }
       }).catch(() => {});
@@ -510,7 +508,7 @@ export default {
           this.currentChatId = newChat.id;
           this.currentChatTitle = newChat.title;
           this.chatHistory.unshift(newChat);
-        } catch (e) {
+        } catch {
           ElMessage.error('创建会话失败');
           this.isStreamLoading = false;
           return;
@@ -563,13 +561,9 @@ export default {
                 // 新起一个文本片段
                 currentMsg.segments.push({ type: 'text', content: data });
               }
-            }
-            // --- 引用文档 ---
-            else if (type === 'CONTEXT') {
+            } else if (type === 'CONTEXT') {
               currentMsg.context = data;
-            }
-            // --- 工具执行 (按时序嵌入) ---
-            else if (type === 'TOOL_EXECUTION') {
+            } else if (type === 'TOOL_EXECUTION') {
               // 直接 push 一个新的工具片段
               currentMsg.segments.push({
                 type: 'tool',
@@ -592,7 +586,7 @@ export default {
             console.error(error);
           }
         );
-      } catch (e) {
+      } catch {
         this.isStreamLoading = false;
       }
     },

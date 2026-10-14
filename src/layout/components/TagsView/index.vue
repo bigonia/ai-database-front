@@ -138,7 +138,7 @@ export default defineComponent({
       store.tagsView().delView(view);
       const visitedViews = store.tagsView().visitedViews;
       if (this.isCurrentRoute(view)) {
-        this.toLastView(visitedViews, view);
+        this.toLastView(visitedViews);
       }
     },
     closeOthersTags() {
@@ -152,21 +152,16 @@ export default defineComponent({
       if (this.affixTags.some(tag => tag.path === view.path)) {
         return;
       }
-      this.toLastView(visitedViews, view);
+      this.toLastView(visitedViews);
     },
-    toLastView(visitedViews, view) {
+    toLastView(visitedViews) {
       const latestView = visitedViews.slice(-1)[0];
       if (latestView) {
         this.$router.push(latestView.fullPath);
       } else {
         // now the default is to redirect to the home page if there is no tags-view,
         // you can adjust it according to your needs.
-        if (view.name === 'Dashboard') {
-          // to reload home page
-          this.$router.replace({ path: '/redirect' + view.fullPath });
-        } else {
-          this.$router.push('/');
-        }
+        this.$router.push('/');
       }
     },
     openMenu(tag, e) {

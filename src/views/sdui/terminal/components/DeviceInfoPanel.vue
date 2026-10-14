@@ -77,6 +77,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
+import type { SduiDeviceDetailResponse } from '@/types/sdui-dashboard';
 
 const props = defineProps<{
   detail: SduiDeviceDetailResponse

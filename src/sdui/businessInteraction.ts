@@ -1,4 +1,4 @@
-import type { BusinessDefinition, BusinessUiResource } from '@/api/business';
+import type { BusinessDefinition, BusinessUiResource } from '@/types/sdui-business';
 
 export function uniqueBusinessName(prefix: string, keys: string[]): string {
   let ordinal = 1;

@@ -43,7 +43,7 @@ defineProps<{
   submitError: string;
   audioStatus: string;
   audioStatusType: 'success' | 'error' | 'info' | 'warning';
-  actionLabel: (name: string) => string;
+  actionLabel:(name: string) => string;
 }>();
 defineEmits<{ refresh: []; select: [entry: DebugJournalEntry] }>();
 

@@ -22,12 +22,12 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
-import { chartSectionError } from './chartSections';
-const props = defineProps<{type: string; fields: Record<string, any>}>();
+import { chartSectionError, type ChartFields } from './chartSections';
+const props = defineProps<{type: string; fields: ChartFields}>();
 const colors = ['#38bdf8', '#fb923c', '#4ade80', '#c084fc'];
 const error = computed(() => chartSectionError(props.type, props.fields));
 const series = computed<number[][]>(() => props.fields.series?.map((group: {points: number[]}) => group.points) || [props.fields.points || []]);
-const range = computed(() => {const values = series.value.flat(); return {min: Math.min(0, ...values), max: Math.max(1, ...values)};});
+const range = computed(() => { const values = series.value.flat(); return { min: Math.min(0, ...values), max: Math.max(1, ...values) }; });
 const step = computed(() => 112 / Math.max(1, series.value[0]?.length || 1));
 const barWidth = computed(() => step.value / series.value.length);
 function y(value: number) { return 88 - (value - range.value.min) / (range.value.max - range.value.min) * 80; }
@@ -35,9 +35,11 @@ function line(points: number[]) { return points.map((value, index) => `${index ?
 const slices = computed(() => {
   const values: number[] = props.fields.values || []; const total = values.reduce((a, b) => a + b, 0); if (!total) return [];
   let angle = -Math.PI / 2;
-  return values.map(value => {const start = angle; angle += value / total * Math.PI * 2;
+  return values.map(value => {
+    const start = angle; angle += value / total * Math.PI * 2;
     if (value === total) return 'M 64 13 A 35 35 0 1 1 64 83 A 35 35 0 1 1 64 13 Z';
-    return `M 64 48 L ${64 + 35 * Math.cos(start)} ${48 + 35 * Math.sin(start)} A 35 35 0 ${angle - start > Math.PI ? 1 : 0} 1 ${64 + 35 * Math.cos(angle)} ${48 + 35 * Math.sin(angle)} Z`;});
+    return `M 64 48 L ${64 + 35 * Math.cos(start)} ${48 + 35 * Math.sin(start)} A 35 35 0 ${angle - start > Math.PI ? 1 : 0} 1 ${64 + 35 * Math.cos(angle)} ${48 + 35 * Math.sin(angle)} Z`;
+  });
 });
 const gaugeSegments = [
   { start: 0, end: 0.6, color: '#459efa' },
@@ -52,7 +54,8 @@ function gaugeArc(start: number, end: number) {
 const gaugeNeedle = computed(() => {
   const min = props.fields.min ?? 0;
   const max = props.fields.max ?? 100;
-  const ratio = Math.max(0, Math.min(1, (props.fields.value - min) / (max - min)));
+  const value = Number(props.fields.value ?? 0);
+  const ratio = Math.max(0, Math.min(1, (value - min) / (max - min)));
   const angle = Math.PI * (1 + ratio);
   return { x: 64 + 32 * Math.cos(angle), y: 64 + 32 * Math.sin(angle) };
 });

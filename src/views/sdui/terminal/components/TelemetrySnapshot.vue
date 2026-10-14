@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { TelemetrySnapshot } from '@/types/sdui-dashboard';
 
 const props = defineProps<{
   telemetry: TelemetrySnapshot | null | undefined

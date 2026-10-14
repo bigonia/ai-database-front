@@ -114,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import type { TrendPoint, TrendSeries } from '@/types/sdui-dashboard';
 import { computed } from 'vue';
 
 type Point2D = { x: number; y: number };
@@ -291,7 +292,7 @@ function buildSubtitle(rows: TrendPoint[]) {
   return `${formatShortTime(first)} - ${formatShortTime(last)}`;
 }
 
-function formatShortTime(val: string | undefined) {
+function formatShortTime(val: string | null | undefined) {
   if (!val) return '--';
   const d = new Date(val);
   if (Number.isNaN(d.getTime())) return val;

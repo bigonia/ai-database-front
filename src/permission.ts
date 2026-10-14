@@ -1,98 +1,93 @@
-import router from './router';
+import router, { addSessionRoute } from './router';
 import userStore from './store/modules/user';
 import permissionStore from './store/modules/permission';
-import NProgress from 'nprogress'; // progress bar
-import 'nprogress/nprogress.css'; // progress bar style
-import { getToken } from '@/utils/auth'; // get token from cookie
+import { createSessionRouteInstaller } from './router/sessionRouteInstaller';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
+import { ElMessage } from 'element-plus';
+import type { RouteRecordRaw } from 'vue-router';
+import { getToken } from '@/utils/auth';
 import getPageTitle from '@/utils/get-page-title';
 
-NProgress.configure({ showSpinner: false }); // NProgress Configuration
+NProgress.configure({ showSpinner: false });
 
-const whiteList = ['/login', '/auth-redirect']; // no redirect whitelist
+const whiteList = ['/login', '/auth-redirect'];
+const installSessionRoutes = createSessionRouteInstaller<RouteRecordRaw>({
+  generateRoutes: roles => permissionStore().generateRoutes(roles),
+  addRoute: route => addSessionRoute(route),
+  isCurrent: (token, generation) => userStore().isSessionCurrent(token, generation)
+});
 
-router.beforeEach(async (to, from, next) => {
-  // console.log('router.beforeEach', to.path, from.path);
-  // start progress bar
+router.beforeEach(async (to, _from, next) => {
   NProgress.start();
-
-  // set page title
   document.title = getPageTitle(to.meta.title);
 
-  // determine whether the user has logged in
   const hasToken = getToken();
+  const currentUser = userStore();
+  const sessionGeneration = currentUser.sessionGeneration;
+  const sessionToken = currentUser.token;
 
-  if (hasToken) {
-    if (to.path === '/login') {
-      // if is logged in, redirect to the home page
-      NProgress.done(); // hack: https://github.com/PanJiaChen/vue-element-admin/pull/2939
-      next({ path: '/' });
-    } else {
-      // determine whether the user has obtained his permission roles through getInfo
-      const hasRoles = userStore().roles && userStore().roles.length > 0;
-      // console.log('hasRoles=', hasRoles);
-      if (hasRoles) {
-        if (!to.matched.length) {
-          next({ path: '/404', replace: true });
-        } else {
-          const denied = to.matched.some(record => {
-            const allowedRoles = record.meta.roles as string[] | undefined;
-            return Array.isArray(allowedRoles)
-              && !userStore().roles.some(role => allowedRoles.includes(role));
-          });
-          next(denied ? { path: '/401', replace: true } : undefined);
-        }
-      } else {
-        try {
-          // get user info
-          // note: roles must be a object array! such as: ['admin'] or ,['developer','editor']
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const infoRes = await userStore().getInfo() as any;
-          let roles = [];
-          if (infoRes.roles) {
-            roles = infoRes.roles;
-          }
-
-          // generate accessible routes map based on roles
-          const accessRoutes = await permissionStore().generateRoutes(roles);
-          // console.log('accessRoutes=', accessRoutes)
-
-          // Install role-filtered routes, then run the same direct-link checks used on later navigations.
-          accessRoutes.forEach(item => router.addRoute(item));
-          const resolved = router.resolve(to.fullPath);
-          if (!resolved.matched.length) {
-            next({ path: '/404', replace: true });
-          } else {
-            const denied = resolved.matched.some(record => {
-              const allowedRoles = record.meta.roles as string[] | undefined;
-              return Array.isArray(allowedRoles)
-                && !roles.some(role => allowedRoles.includes(role));
-            });
-            next(denied ? { path: '/401', replace: true } : { ...to, replace: true });
-          }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
-          // remove token and go to login page to re-login
-          await userStore().resetToken();
-          ElMessage.error(error.message || 'Has Error');
-          NProgress.done();
-          next(`/login?redirect=${to.path}`);
-        }
-      }
-    }
-  } else {
-    /* has no token*/
-    if (whiteList.indexOf(to.path) !== -1) {
-      // in the free login whitelist, go directly
+  if (!hasToken) {
+    if (whiteList.includes(to.path)) {
       next();
     } else {
-      // other pages that do not have permission to access are redirected to the login page.
       NProgress.done();
-      next(`/login?redirect=${to.path}`);
+      next(`/login?redirect=${to.fullPath}`);
     }
+    return;
+  }
+
+  if (to.path === '/login') {
+    NProgress.done();
+    next({ path: '/' });
+    return;
+  }
+
+  try {
+    let roles = currentUser.roles;
+    if (!roles.length) {
+      const info = await currentUser.getInfo();
+      if (!currentUser.isSessionCurrent(sessionToken, sessionGeneration)) {
+        next({ path: to.fullPath, replace: true });
+        return;
+      }
+      roles = info.roles as string[];
+    }
+
+    const routesInstalled = await installSessionRoutes(roles, sessionToken, sessionGeneration);
+    if (!currentUser.isSessionCurrent(sessionToken, sessionGeneration)) {
+      next({ path: to.fullPath, replace: true });
+      return;
+    }
+    if (routesInstalled) {
+      next({ ...to, replace: true });
+      return;
+    }
+
+    const resolved = router.resolve(to.fullPath);
+    const deepestMatched = resolved.matched.at(-1);
+    if (!deepestMatched || deepestMatched.path === '/:pathMatch(.*)*') {
+      next({ path: '/404', replace: true });
+      return;
+    }
+    const denied = resolved.matched.some(record => {
+      const allowedRoles = record.meta.roles as string[] | undefined;
+      return Array.isArray(allowedRoles) && !roles.some(role => allowedRoles.includes(role));
+    });
+    if (denied) next({ path: '/401', replace: true });
+    else next();
+  } catch (error) {
+    if (!currentUser.isSessionCurrent(sessionToken, sessionGeneration)) {
+      next({ path: to.fullPath, replace: true });
+      return;
+    }
+    await currentUser.resetToken();
+    ElMessage.error(error instanceof Error ? error.message : 'Has Error');
+    NProgress.done();
+    next(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
   }
 });
 
 router.afterEach(() => {
-  // finish progress bar
   NProgress.done();
 });

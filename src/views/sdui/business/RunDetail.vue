@@ -7,7 +7,7 @@
           <el-breadcrumb-item>运行详情</el-breadcrumb-item>
         </el-breadcrumb>
         <h1>业务运行</h1>
-        <p>{{ run?.runId || runId }} · <el-tag v-if="run" :type="statusType(run.status)">{{ statusLabel(run.status) }}</el-tag></p>
+        <p>{{ run?.runId || runId }} · <el-tag v-if="run" :type="runStatusType(run.status)">{{ runStatusLabel(run.status) }}</el-tag></p>
       </div>
       <el-button :loading="loading" @click="load">刷新</el-button>
     </header>
@@ -36,7 +36,7 @@
         <el-table-column label="步骤" width="90"><template #default="{ row }">第 {{ row.index + 1 }} 步</template></el-table-column>
         <el-table-column prop="action" label="动作" min-width="180" />
         <el-table-column label="执行位置" width="130"><template #default="{ row }">{{ row.target || '未发送到设备' }}</template></el-table-column>
-        <el-table-column label="结果" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag></template></el-table-column>
+        <el-table-column label="结果" width="120"><template #default="{ row }"><el-tag :type="runStatusType(row.status)">{{ runStatusLabel(row.status) }}</el-tag></template></el-table-column>
         <el-table-column prop="error" label="错误" min-width="220" />
         <el-table-column label="详情" min-width="240"><template #default="{ row }"><pre>{{ JSON.stringify(row.detail, null, 2) }}</pre></template></el-table-column>
       </el-table>
@@ -45,28 +45,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getBusinessRun, parseBusinessRun } from '@/api/business';
-import type { BusinessRun } from '@/api/business';
+import { getBusinessRun } from '@/api/sdui-runs';
+import { parseBusinessRun } from '@/sdui/businessRuns';
+import type { BusinessRun } from '@/types/sdui-run';
+import { runStatusLabel, runStatusType } from '@/sdui/businessStatus';
+import { createRunPolling } from '@/sdui/runPolling';
+import { errorDetails } from '@/utils/errorDetails';
 
 const route = useRoute();
 const router = useRouter();
 const runId = computed(() => String(route.params.runId || ''));
 const contextDeviceId = computed(() => typeof route.query.deviceId === 'string' ? route.query.deviceId : '');
 const backLocation = computed(() => contextDeviceId.value
-  ? { name: 'SduiTerminalDetail', params: { deviceId: contextDeviceId.value } }
+  ? { name: 'SduiTerminalDetail', params: { deviceId: contextDeviceId.value }}
   : { name: 'SduiTerminal' });
 const run = ref<BusinessRun | null>(null);
-const triggerRejectedBeforeSteps = computed(() => run.value?.status === 'failed'
-  && run.value.stoppedAtAction === 'business.trigger'
-  && !run.value.stepSummaries.some((summary) => summary.index === run.value?.stoppedAtIndex));
+const triggerRejectedBeforeSteps = computed(() => run.value?.status === 'failed' &&
+  run.value.stoppedAtAction === 'business.trigger' &&
+  !run.value.stepSummaries.some((summary) => summary.index === run.value?.stoppedAtIndex));
 const stoppedAtStepLabel = computed(() => {
   const current = run.value;
   if (triggerRejectedBeforeSteps.value) return '外部触发未进入业务步骤';
   if (!current || current.stoppedAtIndex == null) return '-';
-  const action = current.stoppedAtAction
-    || current.stepSummaries.find((summary) => summary.index === current.stoppedAtIndex)?.action;
+  const action = current.stoppedAtAction ||
+    current.stepSummaries.find((summary) => summary.index === current.stoppedAtIndex)?.action;
   return `第 ${current.stoppedAtIndex + 1} 步${action ? `：${action}` : ''}`;
 });
 const failureTitle = computed(() => {
@@ -78,28 +82,23 @@ const failureTitle = computed(() => {
 const loading = ref(false);
 const error = ref('');
 let requestGeneration = 0;
-let pollTimer: number | undefined;
-
-function clearPollTimer() {
-  if (pollTimer !== undefined) {
-    window.clearTimeout(pollTimer);
-    pollTimer = undefined;
-  }
-}
-
-function schedulePoll(expectedRunId: string, generation: number) {
-  clearPollTimer();
-  if (run.value?.status !== 'running' || expectedRunId !== runId.value || generation !== requestGeneration) return;
-  pollTimer = window.setTimeout(() => {
-    pollTimer = undefined;
-    if (expectedRunId === runId.value && generation === requestGeneration) void load();
-  }, 2000);
-}
+let pageActive = true;
+const polling = createRunPolling({
+  isActive: () => pageActive,
+  getRunId: () => runId.value,
+  getGeneration: () => requestGeneration,
+  isRunning: () => run.value?.status === 'running',
+  load: () => { void load(); },
+  setTimer: (callback, delay) => window.setTimeout(callback, delay),
+  clearTimer: timer => window.clearTimeout(timer)
+});
+const clearPollTimer = polling.clear;
+const schedulePoll = polling.schedule;
 
 async function load() {
   const requestedRunId = runId.value;
   const requestedDeviceId = contextDeviceId.value;
-  if (!requestedRunId) return;
+  if (!pageActive || !requestedRunId) return;
   clearPollTimer();
   const requestId = ++requestGeneration;
   loading.value = true;
@@ -108,11 +107,12 @@ async function load() {
     const response = await getBusinessRun(requestedRunId) as { data?: unknown };
     if (requestId !== requestGeneration || requestedRunId !== runId.value) return;
     run.value = parseBusinessRun(response?.data, requestedRunId, requestedDeviceId || undefined);
-  } catch (cause: any) {
+  } catch (cause: unknown) {
     if (requestId === requestGeneration && requestedRunId === runId.value) {
-      const reason = cause.message || '运行详情读取失败';
-      const status = cause.response?.status;
-      const code = cause.code ?? cause.apiResponse?.code;
+      const reason = errorDetails(cause).message || '运行详情读取失败';
+      const details = errorDetails(cause);
+      const status = details.response?.status;
+      const code = details.code ?? details.apiResponse?.code;
       if (status === 401 || status === 403 || status === 404 || code === 40400) {
         run.value = null;
         error.value = reason;
@@ -128,23 +128,13 @@ async function load() {
   }
 }
 
-function statusType(status: string): 'success' | 'danger' | 'warning' {
-  if (['ok', 'passed', 'success'].includes(status)) return 'success';
-  if (status === 'failed') return 'danger';
-  return 'warning';
-}
-
-function statusLabel(status: string): string {
-  return ({ ok: '成功', passed: '成功', success: '成功', failed: '失败', running: '运行中' } as Record<string, string>)[status] || status || '未知';
-}
-
 function stepRowClassName({ row }: { row: BusinessRun['stepSummaries'][number] }) {
   return row.status === 'failed' || row.index === run.value?.stoppedAtIndex ? 'failed-step-row' : '';
 }
 
 function openDeployment() {
   if (!run.value?.deploymentId) return;
-  void router.push({ name: 'SduiDeploymentDetail', params: { deploymentId: run.value.deploymentId } });
+  void router.push({ name: 'SduiDeploymentDetail', params: { deploymentId: run.value.deploymentId }});
 }
 
 function formatTime(value: string | null | undefined): string {
@@ -154,6 +144,7 @@ function formatTime(value: string | null | undefined): string {
 }
 
 watch([runId, contextDeviceId], () => {
+  if (!pageActive) return;
   clearPollTimer();
   run.value = null;
   error.value = '';
@@ -162,8 +153,23 @@ watch([runId, contextDeviceId], () => {
 }, { immediate: true });
 
 onBeforeUnmount(() => {
+  pageActive = false;
   clearPollTimer();
   requestGeneration++;
+  loading.value = false;
+});
+
+onDeactivated(() => {
+  pageActive = false;
+  clearPollTimer();
+  requestGeneration++;
+  loading.value = false;
+});
+
+onActivated(() => {
+  if (pageActive) return;
+  pageActive = true;
+  void load();
 });
 </script>
 

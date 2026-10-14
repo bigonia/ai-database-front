@@ -73,6 +73,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import type { ConnectionLog } from '@/types/sdui-dashboard';
 
 const props = defineProps<{
   data: ConnectionLog | null

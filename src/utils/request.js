@@ -2,6 +2,8 @@ import axios from 'axios';
 import { getToken } from '@/utils/auth';
 import userStore from '@/store/modules/user';
 
+/** @typedef {{ code: number, message?: string, data?: unknown }} ApiEnvelope */
+
 // create an axios instance
 const service = axios.create({
   baseURL: import.meta.env.VITE_BASE_API, // url = base url + request url
@@ -10,6 +12,10 @@ const service = axios.create({
 });
 
 export class ApiBusinessError extends Error {
+  /**
+   * @param {ApiEnvelope} response
+   * @param {import('axios').InternalAxiosRequestConfig} config
+   */
   constructor(response, config) {
     super(response?.message || '请求被服务端拒绝');
     this.name = 'ApiBusinessError';
@@ -65,6 +71,7 @@ service.interceptors.response.use(
    * Please return  response => response
   */
   response => {
+    /** @type {ApiEnvelope} */
     const res = response.data;
 
     // 检查：如果 API 直接返回了一个数组

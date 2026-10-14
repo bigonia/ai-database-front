@@ -206,7 +206,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Search, Plus, Setting, Edit, Delete } from '@element-plus/icons-vue';
+import { Search, Plus, Setting } from '@element-plus/icons-vue';
 
 // 引入 API
 import {
@@ -346,7 +346,7 @@ function handleDeleteModel(name) {
       ElMessage.success('删除成功');
       const res = await getModelList();
       availableModels.value = Array.isArray(res) ? res : (res.data || []);
-    } catch (e) {
+    } catch {
       // ignore
     }
   });

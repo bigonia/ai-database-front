@@ -43,7 +43,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { configureSceneRuntime, enterTerminalScene, getSceneRuntime } from '@/api/terminal-scenes';
+import { errorDetails } from '@/utils/errorDetails';
+import { configureSceneRuntime, enterTerminalScene, getSceneRuntime, parseSceneRuntimeStatus } from '@/api/terminal-scenes';
 import type { SceneConfiguration, SceneRuntimeStatus } from '@/api/terminal-scenes';
 import type { TerminalBusiness } from '@/api/terminal-runtime';
 
@@ -83,7 +84,7 @@ function move(index: number, offset: number) {
   [next[index], next[target]] = [next[target], next[index]];
   form.order = next;
 }
-async function perform(action: () => Promise<any>, message?: string) {
+async function perform(action: () => Promise<unknown>, message?: string) {
   if (busy.value) return;
   const id = props.deviceId;
   const current = ++sequence;
@@ -92,10 +93,13 @@ async function perform(action: () => Promise<any>, message?: string) {
   try {
     const response = await action();
     if (id !== props.deviceId || current !== sequence) return;
-    apply(response.data);
+    const data = response !== null && typeof response === 'object' && !Array.isArray(response)
+      ? (response as Record<string, unknown>).data
+      : undefined;
+    apply(parseSceneRuntimeStatus(data));
     if (message) { ElMessage.success(message); emit('changed'); }
-  } catch (failure: any) {
-    if (id === props.deviceId && current === sequence) error.value = failure.response?.data?.reason || failure.message || '页面操作失败';
+  } catch (failure: unknown) {
+    if (id === props.deviceId && current === sequence) error.value = errorDetails(failure).response?.data?.reason || errorDetails(failure).message || '页面操作失败';
   } finally { if (current === sequence) busy.value = false; }
 }
 function load() { return perform(() => getSceneRuntime(props.deviceId)); }

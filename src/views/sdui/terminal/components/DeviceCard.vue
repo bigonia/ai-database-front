@@ -131,6 +131,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { SduiDevice } from '@/types/sdui-dashboard';
 
 const props = defineProps<{ device: SduiDevice }>();
 

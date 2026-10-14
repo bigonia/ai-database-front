@@ -6,6 +6,9 @@ import {
   deleteDevice
 } from '@/api/sdui';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { isTelemetrySnapshot } from '@/sdui/terminalTelemetry';
+import type { SduiDevice, SduiDeviceListResponse } from '@/types/sdui-dashboard';
+import { errorDetails } from '@/utils/errorDetails';
 
 export function useDeviceList() {
   // ── State ──────────────────────────────────────────────
@@ -32,52 +35,30 @@ export function useDeviceList() {
     return value === null || typeof value === 'string';
   }
 
-  function isNullableNumber(value: unknown): boolean {
-    return value === null || (typeof value === 'number' && Number.isFinite(value));
-  }
-
-  function isAuthorizationFailure(cause: any): boolean {
-    return cause?.response?.status === 401 || cause?.response?.status === 403;
-  }
-
-  function isTelemetry(value: unknown): boolean {
-    if (value === null) return true;
-    if (!isRecord(value) || !(value.uptimeS === null || Number.isInteger(value.uptimeS))
-      || !isNullableString(value.lastHeartbeatAt)) return false;
-    if (value.wifi !== null && (!isRecord(value.wifi)
-      || !isNullableNumber(value.wifi.rssi) || !isNullableString(value.wifi.ip))) return false;
-    if (value.memory !== null && (!isRecord(value.memory)
-      || !['freeHeapInternal', 'largestHeapInternal', 'freeHeapDma', 'largestHeapDma', 'freeHeapPsram',
-        'largestHeapPsram', 'freeHeapTotal', 'fragInternalPct', 'fragDmaPct', 'fragPsramPct']
-        .every((key) => isNullableNumber(value.memory[key])))) return false;
-    if (value.temperature !== null && (!isRecord(value.temperature)
-      || !isNullableNumber(value.temperature.celsius))) return false;
-    if (value.power !== null && (!isRecord(value.power)
-      || !['supported', 'charging', 'extPowerPresent', 'extPowerCtrl', 'extPowerOn']
-        .every((key) => value.power[key] === null || typeof value.power[key] === 'boolean')
-      || !['batteryMv', 'batteryPct'].every((key) => isNullableNumber(value.power[key])))) return false;
-    return true;
+  function isAuthorizationFailure(cause: unknown): boolean {
+    const status = errorDetails(cause).response?.status;
+    return status === 401 || status === 403;
   }
 
   function parseInventoryPage(value: unknown, page: number, size: number,
     registrationStatus: 'CLAIMED' | 'UNCLAIMED'): SduiDeviceListResponse {
-    if (!isRecord(value) || !Number.isInteger(value.totalCount) || Number(value.totalCount) < 0
-      || !Number.isInteger(value.onlineCount) || Number(value.onlineCount) < 0
-      || !Number.isInteger(value.offlineCount) || Number(value.offlineCount) < 0
-      || Number(value.onlineCount) + Number(value.offlineCount) !== Number(value.totalCount)
-      || value.page !== page || value.size !== size || !Array.isArray(value.items)
-      || value.items.length > size) throw new Error('终端列表接口分页响应格式无效');
+    if (!isRecord(value) || !Number.isInteger(value.totalCount) || Number(value.totalCount) < 0 ||
+      !Number.isInteger(value.onlineCount) || Number(value.onlineCount) < 0 ||
+      !Number.isInteger(value.offlineCount) || Number(value.offlineCount) < 0 ||
+      Number(value.onlineCount) + Number(value.offlineCount) !== Number(value.totalCount) ||
+      value.page !== page || value.size !== size || !Array.isArray(value.items) ||
+      value.items.length > size) throw new Error('终端列表接口分页响应格式无效');
     const ids = new Set<string>();
     const validItems = value.items.every((item) => {
-      if (!isRecord(item) || typeof item.deviceId !== 'string' || !item.deviceId.trim()
-        || ids.has(item.deviceId) || !(item.name === null || typeof item.name === 'string')
-        || !['ONLINE', 'OFFLINE'].includes(String(item.status))
-        || item.registrationStatus !== registrationStatus
-        || !isNullableString(item.board) || !isNullableString(item.capabilitySyncState)
-        || !isNullableString(item.lastSeenAt) || !isNullableString(item.connectedAt)
-        || !(item.connectionCount === null || (Number.isInteger(item.connectionCount) && Number(item.connectionCount) >= 0))
-        || !isNullableString(item.claimedAt) || !isNullableString(item.createdAt)
-        || !isTelemetry(item.lastTelemetry)) return false;
+      if (!isRecord(item) || typeof item.deviceId !== 'string' || !item.deviceId.trim() ||
+        ids.has(item.deviceId) || !(item.name === null || typeof item.name === 'string') ||
+        !['ONLINE', 'OFFLINE'].includes(String(item.status)) ||
+        item.registrationStatus !== registrationStatus ||
+        !isNullableString(item.board) || !isNullableString(item.capabilitySyncState) ||
+        !isNullableString(item.lastSeenAt) || !isNullableString(item.connectedAt) ||
+        !(item.connectionCount === null || (Number.isInteger(item.connectionCount) && Number(item.connectionCount) >= 0)) ||
+        !isNullableString(item.claimedAt) || !isNullableString(item.createdAt) ||
+        !isTelemetrySnapshot(item.lastTelemetry)) return false;
       ids.add(item.deviceId);
       return true;
     });
@@ -122,11 +103,11 @@ export function useDeviceList() {
       sortDir: filters.sortDir
     };
     const queryKey = JSON.stringify(query);
-    const isCurrentQuery = () => requestId === claimedRequestId
-      && query.page === pagination.page - 1 && query.size === pagination.size
-      && query.status === filters.status
-      && query.search === filters.search && query.sortBy === filters.sortBy
-      && query.sortDir === filters.sortDir;
+    const isCurrentQuery = () => requestId === claimedRequestId &&
+      query.page === pagination.page - 1 && query.size === pagination.size &&
+      query.status === filters.status &&
+      query.search === filters.search && query.sortBy === filters.sortBy &&
+      query.sortDir === filters.sortDir;
     loading.claimed = true;
     errors.claimed = '';
     staleSnapshot.claimed = false;
@@ -157,9 +138,9 @@ export function useDeviceList() {
       claimedCounts.offline = data.offlineCount;
       lastClaimedQueryKey = queryKey;
       staleSnapshot.claimed = false;
-    } catch (cause: any) {
+    } catch (cause: unknown) {
       if (!isCurrentQuery()) return;
-      const reason = cause.message || '加载终端列表失败';
+      const reason = errorDetails(cause).message || '加载终端列表失败';
       if (lastClaimedQueryKey === queryKey && claimedDevices.value.length) {
         errors.claimed = `当前筛选结果刷新失败，以下保留的是最近一次成功读取的快照：${reason}`;
         staleSnapshot.claimed = true;
@@ -191,8 +172,8 @@ export function useDeviceList() {
     const requestId = ++unclaimedRequestId;
     const query = { page: unclaimedPagination.page - 1, size: unclaimedPagination.size };
     const queryKey = JSON.stringify(query);
-    const isCurrentQuery = () => requestId === unclaimedRequestId
-      && query.page === unclaimedPagination.page - 1 && query.size === unclaimedPagination.size;
+    const isCurrentQuery = () => requestId === unclaimedRequestId &&
+      query.page === unclaimedPagination.page - 1 && query.size === unclaimedPagination.size;
     loading.unclaimed = true;
     errors.unclaimed = '';
     staleSnapshot.unclaimed = false;
@@ -213,9 +194,9 @@ export function useDeviceList() {
       unclaimedCounts.offline = data.offlineCount;
       lastUnclaimedQueryKey = queryKey;
       staleSnapshot.unclaimed = false;
-    } catch (cause: any) {
+    } catch (cause: unknown) {
       if (!isCurrentQuery()) return;
-      const reason = cause.message || '加载未认领设备失败';
+      const reason = errorDetails(cause).message || '加载未认领设备失败';
       if (lastUnclaimedQueryKey === queryKey && unclaimedDevices.value.length) {
         errors.unclaimed = `当前分页刷新失败，以下保留的是最近一次成功读取的快照：${reason}`;
         staleSnapshot.unclaimed = true;
@@ -282,8 +263,8 @@ export function useDeviceList() {
       pagination.page = 1;
       await Promise.all([fetchClaimedDevices(), fetchUnclaimedDevices()]);
       return true;
-    } catch (cause: any) {
-      ElMessage.error(cause.message || '设备认领失败');
+    } catch (cause: unknown) {
+      ElMessage.error(errorDetails(cause).message || '设备认领失败');
       return false;
     } finally {
       loading.claim = false;
@@ -305,8 +286,8 @@ export function useDeviceList() {
       await deleteDevice(device.deviceId);
       ElMessage.success('设备已删除');
       await fetchClaimedDevices();
-    } catch (cause: any) {
-      ElMessage.error(cause.message || '删除设备失败');
+    } catch (cause: unknown) {
+      ElMessage.error(errorDetails(cause).message || '删除设备失败');
     } finally {
       loading.delete = false;
     }

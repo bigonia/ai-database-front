@@ -67,14 +67,10 @@ Individual API modules (`src/api/*.js`, `src/api/space.ts`) are plain functions 
 
 | Route | Path | Feature |
 |---|---|---|
-| Dashboard | `/dashboard` | Home page |
+| Root | `/` | Redirects to the SDUI terminal list |
 | Agent Management | `/agent/list` | Agent CRUD |
 | AI Chat | `/ai-chat/index` | Chat interface |
-| Datasource | `/datasource/list` | Database connections |
 | SDUI Console | `/sdui/*` | Server-driven UI management (overview, devices, workflows, editor) |
-| File Manager | `/file-ops/manager` | File operations |
-| Domain Docs | `/domain-docs/list` | Domain documents |
-| Knowledge Base | `/knowledge/list` | Vector store / knowledge base |
 
 ### Auto-imports
 

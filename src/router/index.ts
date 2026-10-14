@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { RouteComponent, RouteRecordRaw, Router } from 'vue-router';
+import { createRouteResetter } from './routeReset';
 
 /* Layout */
 const Layout = (): RouteComponent => import('@/layout/index.vue');
@@ -38,16 +39,7 @@ export const constantRoutes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    component: Layout,
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        component: () => import('@/views/dashboard/index.vue'),
-        name: 'Dashboard',
-        meta: { title: 'Dashboard', icon: 'dashboard', affix: true }
-      }
-    ]
+    redirect: '/sdui/terminal'
   },
   {
     path: '/profile',
@@ -62,7 +54,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: 'Profile', icon: 'user', noCache: true }
       }
     ]
-  },
+  }
 
 ];
 
@@ -131,7 +123,7 @@ export const asyncRoutes: RouteRecordRaw[] = [
         name: 'SduiRunDetail',
         component: () => import('@/views/sdui/business/RunDetail.vue'),
         meta: { title: '运行详情', hidden: true, roles: ['admin', 'editor', 'guest', 'sdui_only'] }
-      },
+      }
     ]
   },
   {
@@ -178,15 +170,15 @@ const createTheRouter = (): Router =>
     routes: constantRoutes
   });
 
-interface RouterPro extends Router {
-  matcher: unknown;
+const router: Router = createTheRouter();
+const routeResetter = createRouteResetter(router);
+
+export function addSessionRoute(route: RouteRecordRaw) {
+  routeResetter.add(route);
 }
 
-const router = createTheRouter() as RouterPro;
-
 export function resetRouter() {
-  const newRouter = createTheRouter() as RouterPro;
-  router.matcher = newRouter.matcher;
+  routeResetter.reset();
 }
 
 export default router;

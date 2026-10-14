@@ -17,8 +17,8 @@ const debugOnlyCommands = new Set(['system.reboot', 'system.provisioning.start']
 const packagedCommands: Set<string> = new Set(Object.values(capabilityRecipes).flat());
 
 export function isVisibleDirectCommand(name: string, surface: CapabilitySurface): boolean {
-  return !hiddenCommands.has(name) && !packagedCommands.has(name)
-    && (surface === 'debug' || !debugOnlyCommands.has(name));
+  return !hiddenCommands.has(name) && !packagedCommands.has(name) &&
+    (surface === 'debug' || !debugOnlyCommands.has(name));
 }
 
 export function supportsCapability(commands: Iterable<string>, capability: keyof typeof capabilityRecipes): boolean {
@@ -39,6 +39,6 @@ export function isBusinessRecipe(name: string): boolean {
 
 /** Business-facing actions hide conversions already wrapped by audio capture/playback. */
 export function isVisibleBusinessAction(name: string): boolean {
-  return !['ai.stt', 'ai.tts'].includes(name)
-    && (isBusinessRecipe(name) || isVisibleDirectCommand(name, 'business'));
+  return !['ai.stt', 'ai.tts'].includes(name) &&
+    (isBusinessRecipe(name) || isVisibleDirectCommand(name, 'business'));
 }

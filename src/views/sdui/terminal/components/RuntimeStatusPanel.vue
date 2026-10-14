@@ -18,7 +18,7 @@
         <div><span class="label">当前视图</span><span>{{ viewLabel }}</span><el-button v-if="status.view.snapshotAvailable" link type="primary" :loading="snapshotLoading" @click="showSnapshot">查看快照</el-button></div>
       </div>
       <SceneRuntimePanel :device-id="status.deviceId" :online="status.online" :observed-at="status.observedAt"
-        :businesses="status.businesses" @state="pageState = $event" @changed="emit('refresh')" />
+                         :businesses="status.businesses" @state="pageState = $event" @changed="emit('refresh')" />
       <p class="status-note">{{ status.online ? '' : '终端离线，页面配置需在线后才能应用。' }}当前视图为平台保存的最近下发记录。</p>
     </template>
     <el-empty v-else :description="loading ? '正在读取运行状态' : '暂无运行状态'" :image-size="44" />
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { errorDetails } from '@/utils/errorDetails';
 import type { SceneRuntimeStatus } from '@/api/terminal-scenes';
 import { getDebugViewState } from '@/api/sdui';
 import type { TerminalBusiness, TerminalRuntimeStatus } from '@/api/terminal-runtime';
@@ -62,8 +63,8 @@ const viewLabel = computed(() => {
   if (view.kind === 'none') return '无视图记录';
   if (view.kind === 'unknown') return '未知';
   const business = props.status?.businesses.find(item => item.deploymentId === view.deploymentId);
-  const type = view.kind === 'image' ? '图片' : view.kind === 'canvas' ? 'Canvas' :
-    ({ menu: '菜单', text: '文本', clock: '时钟' } as Record<string, string>)[view.sectionType || ''] || '界面';
+  const type = view.kind === 'image' ? '图片' : view.kind === 'canvas' ? 'Canvas'
+    : ({ menu: '菜单', text: '文本', clock: '时钟' } as Record<string, string>)[view.sectionType || ''] || '界面';
   const name = business?.businessName || (view.sceneId === 'nexus-agent' ? pageState.value?.agentName || 'Agent'
     : view.sceneId === 'nexus-home' ? '页面选择页' : '未关联业务');
   return `${name} / ${type}`;
@@ -90,14 +91,14 @@ async function showSnapshot() {
     const response = await getDebugViewState(status.deviceId);
     if (request !== snapshotRequest) return;
     const value = response?.data;
-    if (value?.deviceId !== status.deviceId || value?.primaryView?.sceneId !== status.view.sceneId
-      || !value?.primaryView?.section || typeof value.primaryView.section !== 'object') {
+    if (value?.deviceId !== status.deviceId || value?.primaryView?.sceneId !== status.view.sceneId ||
+      !value?.primaryView?.section || typeof value.primaryView.section !== 'object') {
       throw new Error('视图已变化或快照不可用，请刷新运行状态');
     }
     snapshot.value = value.primaryView.section;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (request !== snapshotRequest) return;
-    snapshotError.value = error.message || '快照读取失败';
+    snapshotError.value = errorDetails(error).message || '快照读取失败';
   } finally {
     if (request === snapshotRequest) {
       snapshotLoading.value = false;

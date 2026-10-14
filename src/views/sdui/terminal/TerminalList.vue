@@ -157,12 +157,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onBeforeUnmount, onDeactivated, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '@/components/Pagination/index.vue';
 import DeviceCard from './components/DeviceCard.vue';
 import ClaimDialog from './components/ClaimDialog.vue';
 import { useDeviceList } from './composables/useDeviceList';
+import type { SduiDevice } from '@/types/sdui-dashboard';
 
 const router = useRouter();
 
@@ -178,7 +179,6 @@ const {
   claimedCounts,
   unclaimedCounts,
   fetchClaimedDevices,
-  fetchUnclaimedDevices,
   refreshAll,
   resetAndFetch,
   handlePagination: listHandlePagination,
@@ -228,6 +228,11 @@ function onSearchClear() {
   resetAndFetch();
 }
 
+function clearSearchTimer() {
+  if (searchTimer.value) clearTimeout(searchTimer.value);
+  searchTimer.value = null;
+}
+
 // ── Actions ────────────────────────────────────────────
 function goToDetail(device: SduiDevice) {
   router.push({ name: 'SduiTerminalDetail', params: { deviceId: device.deviceId }});
@@ -254,6 +259,8 @@ function handlePagination({ page, limit }: { page: number; limit: number }) {
 onMounted(() => {
   refreshAll();
 });
+onDeactivated(clearSearchTimer);
+onBeforeUnmount(clearSearchTimer);
 
 // ── Formatters ─────────────────────────────────────────
 function formatTime(val: string | null | undefined): string {

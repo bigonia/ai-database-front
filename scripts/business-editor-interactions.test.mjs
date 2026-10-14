@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
 // Run the production TypeScript helpers without adding a test runner dependency.
 const source = await readFile(new URL('../src/sdui/businessInteraction.ts', import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }}).outputText;
 const { uniqueBusinessName, renamePageReferences, renameMenuActionReferences, removeMenuItemBinding } =
   await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
@@ -13,7 +14,7 @@ function draft() {
   return {
     uis: [{ key: 'menu', template: 'menu_section', fields: { items: [
       { label: 'A', token: '@a' }, { label: 'B', token: '@b' }, { label: 'C', token: '@c' }
-    ] } }],
+    ] }}],
     flows: [
       { key: 'a', entry: { kind: 'device', ui: 'menu', interaction: 'menu.item.1' }, steps: [] },
       { key: 'b', entry: { kind: 'device', ui: 'menu', interaction: 'menu.item.2' }, steps: [{ action: 'ui.show', ui: 'details' }] },

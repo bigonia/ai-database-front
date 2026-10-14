@@ -6,9 +6,6 @@
     <breadcrumb id="breadcrumb-container" class="breadcrumb-container" />
 
     <div class="right-menu">
-      <template v-if="device !== 'mobile'">
-      </template>
-
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
         <div class="avatar-wrapper">
           <img :src="avatar + '?imageView2/1/w/80/h/80'" class="user-avatar">
@@ -24,12 +21,6 @@
             <router-link to="/">
               <el-dropdown-item>首页</el-dropdown-item>
             </router-link>
-            <a target="_blank" href="https://github.com/midfar/vue3-element-admin">
-              <el-dropdown-item>项目地址</el-dropdown-item>
-            </a>
-            <a target="_blank" href="https://vue3-element-admin-site.midfar.com/">
-              <el-dropdown-item>文档地址</el-dropdown-item>
-            </a>
             <el-dropdown-item divided @click="logout">
               <span style="display:block;">退出登录</span>
             </el-dropdown-item>
@@ -56,8 +47,7 @@ export default defineComponent({
   },
   computed: {
     ...mapState(store.app, [
-      'sidebar',
-      'device'
+      'sidebar'
     ]),
     ...mapState(store.user, [
       'avatar'
@@ -68,7 +58,11 @@ export default defineComponent({
       store.app().toggleSidebar();
     },
     async logout() {
-      await store.user().logout();
+      try {
+        await store.user().logout();
+      } catch {
+        // The request layer reports the server failure; local credentials and routes are still cleared.
+      }
       this.$router.push(`/login?redirect=${this.$route.fullPath}`);
     }
   }
